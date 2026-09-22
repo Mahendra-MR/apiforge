@@ -7,11 +7,10 @@
   "scripts": {
     "copy-embed": "rm -rf backend frontend && mkdir -p backend frontend && cp -R ../backend/dist/. backend/ && echo '{\"type\":\"module\"}' > backend/package.json && cp -R ../frontend/dist/. frontend/",
     "dev": "npm run copy-embed && electron .",
-    "rebuild-native": "bash scripts/rebuild-native-for-electron.sh",
-    "dist:mac": "npm run copy-embed && npm run rebuild-native && electron-builder --mac"
+    "dist:mac": "npm run copy-embed && electron-builder --mac"
   },
   "devDependencies": {
-    "electron": "33.4.11",
+    "electron": "35.7.5",
     "electron-builder": "^25.1.8"
   },
   "dependencies": {
@@ -29,7 +28,7 @@
   "build": {
     "appId": "dev.apiforge.desktop",
     "productName": "APIForge AI",
-    "electronVersion": "33.4.11",
+    "electronVersion": "35.7.5",
     "icon": "build/icon.png",
     "npmRebuild": false,
     "directories": {
