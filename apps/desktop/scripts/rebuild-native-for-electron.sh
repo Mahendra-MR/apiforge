@@ -9,15 +9,24 @@
 # (lib/binding.js -> getPrebuildPath()) looks first at runtime:
 #   node_modules/better-sqlite3/prebuilds/darwin-<arch>.node
 #
-# Uses node-gyp directly rather than the @electron/rebuild wrapper: a first
-# attempt via @electron/rebuild reported "Rebuild Complete" in ~2 seconds
-# (implausibly fast for compiling better-sqlite3's embedded SQLite
-# amalgamation) and left no .node file behind -- and that wrapper swallows
-# node-gyp's real build output on success, making it undebuggable. Running
-# node-gyp directly, from inside the module's own directory (so it needs no
-# --module-dir/workspace-hoisting reasoning at all), with --verbose and no
-# output capture, gives real compiler output if this ever breaks again.
-# --dist-url matches the header URL @electron/rebuild itself defaults to.
+# --force_build=1 is what actually makes the compile happen. better-sqlite3's
+# binding.gyp sets its targets to 'type': 'none' -- a no-op that compiles
+# nothing and only touches a .stamp file -- whenever a prebuild already
+# exists for the host, which it always does here (it ships prebuilds for
+# every platform). Its own release script does the same thing:
+#   "build-release": "node-gyp clean && node-gyp rebuild --release --force_build=1"
+# Without that flag, node-gyp exits 0 having built nothing at all, which is
+# exactly how the stale Node-ABI prebuild survived and crashed the app.
+#
+# Uses node-gyp directly rather than the @electron/rebuild wrapper, which
+# swallows node-gyp's output on success and so hid the silent no-op. Run
+# from inside the module's own directory, so there's no --module-dir /
+# workspace-hoisting resolution to get wrong. --dist-url matches the header
+# URL @electron/rebuild itself defaults to.
+#
+# NOTE: gyp cannot handle spaces in paths (nodejs/node-gyp#65), so this
+# won't run from a checkout under a directory like "personal projects".
+# CI is unaffected (/Users/runner/work/...).
 #
 # Must run after `npm install` (better-sqlite3 has to already be present)
 # and before `electron-builder --mac` packages the app.
@@ -41,10 +50,10 @@ for ARCH in arm64 x64; do
   (
     cd "$BSQLITE_DIR"
     npx --yes node-gyp rebuild \
+      --force_build=1 \
       --arch="$ARCH" \
       --target="$ELECTRON_VERSION" \
-      --dist-url=https://www.electronjs.org/headers \
-      --verbose
+      --dist-url=https://www.electronjs.org/headers
   )
 
   BUILT_NODE="$BSQLITE_DIR/build/Release/better_sqlite3.node"
