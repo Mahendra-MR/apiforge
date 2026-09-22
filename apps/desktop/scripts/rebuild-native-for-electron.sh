@@ -9,6 +9,16 @@
 # (lib/binding.js -> getPrebuildPath()) looks first at runtime:
 #   node_modules/better-sqlite3/prebuilds/darwin-<arch>.node
 #
+# Uses node-gyp directly rather than the @electron/rebuild wrapper: a first
+# attempt via @electron/rebuild reported "Rebuild Complete" in ~2 seconds
+# (implausibly fast for compiling better-sqlite3's embedded SQLite
+# amalgamation) and left no .node file behind -- and that wrapper swallows
+# node-gyp's real build output on success, making it undebuggable. Running
+# node-gyp directly, from inside the module's own directory (so it needs no
+# --module-dir/workspace-hoisting reasoning at all), with --verbose and no
+# output capture, gives real compiler output if this ever breaks again.
+# --dist-url matches the header URL @electron/rebuild itself defaults to.
+#
 # Must run after `npm install` (better-sqlite3 has to already be present)
 # and before `electron-builder --mac` packages the app.
 set -euo pipefail
@@ -18,46 +28,30 @@ ROOT_DIR="$(cd "$DESKTOP_DIR/../.." && pwd)"
 BSQLITE_DIR="$ROOT_DIR/node_modules/better-sqlite3"
 ELECTRON_VERSION="$(node -p "require('$DESKTOP_DIR/package.json').devDependencies.electron")"
 
-echo "Rebuilding better-sqlite3 for Electron $ELECTRON_VERSION (project root: $ROOT_DIR)"
+echo "Rebuilding better-sqlite3 for Electron $ELECTRON_VERSION via node-gyp directly"
 mkdir -p "$BSQLITE_DIR/prebuilds"
 
 for ARCH in arm64 x64; do
   echo "=== Rebuilding better-sqlite3 for darwin-$ARCH ==="
-  MARKER="$(mktemp)"
-  sleep 1 # ensure the marker is strictly older than anything rebuilt below
+  # Clean state each time: removes leftover build/ from a prior failed
+  # attempt, and (on the second loop iteration) the previous arch's
+  # build/Release/better_sqlite3.node so it can't be mistaken for this one.
+  rm -rf "$BSQLITE_DIR/build"
 
-  # --module-dir must be the directory that CONTAINS package.json (this
-  # monorepo's root, where deps are hoisted to node_modules/), not the
-  # node_modules folder itself -- @electron/rebuild's ModuleWalker reads
-  # <module-dir>/package.json to find the dependency tree to rebuild.
-  # DEBUG=electron-rebuild: "Rebuild Complete" printed last time but no new
-  # .node file appeared anywhere under the module -- something is telling
-  # @electron/rebuild this module is already fine without actually
-  # recompiling it, but better-sqlite3 doesn't declare prebuildify /
-  # prebuild-install / node-pre-gyp as a dependency, so none of that
-  # library's own "already prebuilt" shortcuts should apply on paper. Rather
-  # than guess again, get its own internal trace logging to show exactly
-  # which code path it took.
-  DEBUG=electron-rebuild npx --yes @electron/rebuild \
-    --force \
-    --which-module better-sqlite3 \
-    --version "$ELECTRON_VERSION" \
-    --arch "$ARCH" \
-    --module-dir "$ROOT_DIR"
+  (
+    cd "$BSQLITE_DIR"
+    npx --yes node-gyp rebuild \
+      --arch="$ARCH" \
+      --target="$ELECTRON_VERSION" \
+      --dist-url=https://www.electronjs.org/headers \
+      --verbose
+  )
 
-  # Don't assume exactly which directory @electron/rebuild left the rebuilt
-  # binary in (it writes the raw node-gyp output under build/Release/, and
-  # separately copies it under bin/<platform>-<arch>-<abi>/ unless
-  # --disable-pre-gyp-copy was passed) -- just find whatever *.node file it
-  # just produced under the module, by modification time.
-  # (macOS ships BSD find, which has no -quit action like GNU find does, so
-  # just take the first line of plain output.)
-  BUILT_NODE="$(find "$BSQLITE_DIR" -name '*.node' -newer "$MARKER" | head -n 1)"
-  rm -f "$MARKER"
-  if [ -z "$BUILT_NODE" ]; then
-    echo "ERROR: no rebuilt .node file found under $BSQLITE_DIR after rebuilding for darwin-$ARCH" >&2
-    echo "Directory contents for debugging:" >&2
-    find "$BSQLITE_DIR" -name '*.node' >&2 || true
+  BUILT_NODE="$BSQLITE_DIR/build/Release/better_sqlite3.node"
+  if [ ! -f "$BUILT_NODE" ]; then
+    echo "ERROR: node-gyp reported success but $BUILT_NODE is missing" >&2
+    echo "build/Release contents:" >&2
+    ls -la "$BSQLITE_DIR/build/Release" >&2 || true
     exit 1
   fi
 
