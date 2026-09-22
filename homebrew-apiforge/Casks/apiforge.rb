@@ -2,22 +2,18 @@ cask "apiforge" do
   version "0.1.0"
 
   on_arm do
-    # TODO: replace with the real sha256 once you've uploaded a real release asset.
-    # Compute it with: shasum -a 256 APIForge-AI-#{version}-arm64.dmg
-    sha256 "REPLACE_WITH_ARM64_DMG_SHA256"
-    url "https://github.com/YOUR_GITHUB_USERNAME/apiforge-ai/releases/download/v#{version}/APIForge-AI-#{version}-arm64.dmg"
+    sha256 "0a522b9c83bb1d87e0e6f5e09160cfc746f735063057b103bb682507cf5cb4c6"
+    url "https://github.com/Mahendra-MR/apiforge/releases/download/v#{version}/APIForge-AI-#{version}-arm64.dmg"
   end
 
   on_intel do
-    # TODO: replace with the real sha256 once you've uploaded a real release asset.
-    # Compute it with: shasum -a 256 APIForge-AI-#{version}-x64.dmg
-    sha256 "REPLACE_WITH_X64_DMG_SHA256"
-    url "https://github.com/YOUR_GITHUB_USERNAME/apiforge-ai/releases/download/v#{version}/APIForge-AI-#{version}-x64.dmg"
+    sha256 "eb1a5b41ce56659ced7c39d39d89f40b74b8e1c4b135922bd8b39c7ecc9ef1dd"
+    url "https://github.com/Mahendra-MR/apiforge/releases/download/v#{version}/APIForge-AI-#{version}-x64.dmg"
   end
 
   name "APIForge AI"
   desc "Lightweight, AI-assisted API testing and development platform"
-  homepage "https://github.com/YOUR_GITHUB_USERNAME/apiforge-ai"
+  homepage "https://github.com/Mahendra-MR/apiforge"
 
   # Unsigned build (no Apple Developer account yet) — Homebrew installs it
   # fine, but macOS Gatekeeper still blocks the first launch. Users need to
