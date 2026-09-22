@@ -15,21 +15,24 @@ set -euo pipefail
 
 DESKTOP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ROOT_DIR="$(cd "$DESKTOP_DIR/../.." && pwd)"
-MODULE_DIR="$ROOT_DIR/node_modules"
-BSQLITE_DIR="$MODULE_DIR/better-sqlite3"
+BSQLITE_DIR="$ROOT_DIR/node_modules/better-sqlite3"
 ELECTRON_VERSION="$(node -p "require('$DESKTOP_DIR/package.json').devDependencies.electron")"
 
-echo "Rebuilding better-sqlite3 for Electron $ELECTRON_VERSION (module dir: $MODULE_DIR)"
+echo "Rebuilding better-sqlite3 for Electron $ELECTRON_VERSION (project root: $ROOT_DIR)"
 mkdir -p "$BSQLITE_DIR/prebuilds"
 
 for ARCH in arm64 x64; do
   echo "=== Rebuilding better-sqlite3 for darwin-$ARCH ==="
+  # --module-dir must be the directory that CONTAINS package.json (this
+  # monorepo's root, where deps are hoisted to node_modules/), not the
+  # node_modules folder itself -- @electron/rebuild's ModuleWalker reads
+  # <module-dir>/package.json to find the dependency tree to rebuild.
   npx --yes @electron/rebuild \
     --force \
     --which-module better-sqlite3 \
     --version "$ELECTRON_VERSION" \
     --arch "$ARCH" \
-    --module-dir "$MODULE_DIR"
+    --module-dir "$ROOT_DIR"
 
   BUILT_NODE="$BSQLITE_DIR/build/Release/better_sqlite3.node"
   if [ ! -f "$BUILT_NODE" ]; then
