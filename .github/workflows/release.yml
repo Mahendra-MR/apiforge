@@ -60,6 +60,12 @@ jobs:
           NOTES="Unsigned build (no Apple Developer account yet). On first launch: right-click the app and choose Open, or go to System Settings > Privacy & Security > \"Open Anyway\" after the first blocked attempt."
           if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
             gh release upload "$TAG" apps/desktop/release/*.dmg apps/desktop/release/*.zip --clobber --repo "${{ github.repository }}"
+            # Deleting and re-pushing a tag to re-run this workflow detaches the
+            # existing release from that tag and silently demotes it to a draft.
+            # A draft's assets 404 on their public download URLs, which breaks
+            # the Homebrew cask even though the upload above succeeded, so
+            # re-publish and re-attach the tag explicitly.
+            gh release edit "$TAG" --draft=false --tag "$TAG" --repo "${{ github.repository }}"
           else
             gh release create "$TAG" apps/desktop/release/*.dmg apps/desktop/release/*.zip \
               --title "APIForge AI $TAG" \
