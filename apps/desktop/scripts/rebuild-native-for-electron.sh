@@ -30,7 +30,15 @@ for ARCH in arm64 x64; do
   # monorepo's root, where deps are hoisted to node_modules/), not the
   # node_modules folder itself -- @electron/rebuild's ModuleWalker reads
   # <module-dir>/package.json to find the dependency tree to rebuild.
-  npx --yes @electron/rebuild \
+  # DEBUG=electron-rebuild: "Rebuild Complete" printed last time but no new
+  # .node file appeared anywhere under the module -- something is telling
+  # @electron/rebuild this module is already fine without actually
+  # recompiling it, but better-sqlite3 doesn't declare prebuildify /
+  # prebuild-install / node-pre-gyp as a dependency, so none of that
+  # library's own "already prebuilt" shortcuts should apply on paper. Rather
+  # than guess again, get its own internal trace logging to show exactly
+  # which code path it took.
+  DEBUG=electron-rebuild npx --yes @electron/rebuild \
     --force \
     --which-module better-sqlite3 \
     --version "$ELECTRON_VERSION" \
