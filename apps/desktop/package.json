@@ -7,10 +7,11 @@
   "scripts": {
     "copy-embed": "rm -rf backend frontend && mkdir -p backend frontend && cp -R ../backend/dist/. backend/ && echo '{\"type\":\"module\"}' > backend/package.json && cp -R ../frontend/dist/. frontend/",
     "dev": "npm run copy-embed && electron .",
-    "rebuild-native": "electron-builder install-app-deps",
-    "dist:mac": "npm run copy-embed && electron-builder --mac"
+    "rebuild-native": "bash scripts/rebuild-native-for-electron.sh",
+    "dist:mac": "npm run copy-embed && npm run rebuild-native && electron-builder --mac"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.2.0",
     "electron": "33.4.11",
     "electron-builder": "^25.1.8"
   },
