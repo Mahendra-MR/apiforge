@@ -1,0 +1,55 @@
+name: Build and release macOS desktop app
+
+# Builds the Electron desktop app on a real macOS runner (electron-builder's
+# .dmg packaging needs macOS's hdiutil, which isn't available in Linux CI or
+# this project's own dev sandbox) and publishes the result as a GitHub
+# Release, so the Homebrew tap (see homebrew-apiforge/) has real assets to
+# point at.
+#
+# Trigger it by pushing a version tag (git tag v0.1.0 && git push origin v0.1.0),
+# or manually from the Actions tab with a version input.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version tag to release (e.g. v0.1.0)"
+        required: true
+        default: "v0.1.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build and package (backend + frontend + electron-builder --mac)
+        run: npm run dist:mac
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.inputs.version || github.ref_name }}
+        run: |
+          NOTES="Unsigned build (no Apple Developer account yet). On first launch: right-click the app and choose Open, or go to System Settings > Privacy & Security > \"Open Anyway\" after the first blocked attempt."
+          if gh release view "$TAG" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            gh release upload "$TAG" apps/desktop/release/*.dmg apps/desktop/release/*.zip --clobber --repo "${{ github.repository }}"
+          else
+            gh release create "$TAG" apps/desktop/release/*.dmg apps/desktop/release/*.zip \
+              --title "APIForge AI $TAG" \
+              --notes "$NOTES" \
+              --repo "${{ github.repository }}"
+          fi
