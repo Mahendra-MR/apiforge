@@ -1,0 +1,56 @@
+{
+  "name": "@apiforge/desktop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "APIForge AI packaged as a native macOS desktop app (Electron shell around the existing Express backend + React frontend, with an embedded SQLite database).",
+  "main": "main.js",
+  "scripts": {
+    "copy-embed": "rm -rf backend frontend && mkdir -p backend frontend && cp -R ../backend/dist/. backend/ && echo '{\"type\":\"module\"}' > backend/package.json && cp -R ../frontend/dist/. frontend/",
+    "dev": "npm run copy-embed && electron .",
+    "rebuild-native": "electron-builder install-app-deps",
+    "dist:mac": "npm run copy-embed && electron-builder --mac"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.1",
+    "better-sqlite3": "^13.0.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.21.1",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
+    "pino": "^9.5.0",
+    "pino-http": "^10.3.0",
+    "zod": "^3.23.8"
+  },
+  "build": {
+    "appId": "dev.apiforge.desktop",
+    "productName": "APIForge AI",
+    "electronVersion": "33.4.11",
+    "icon": "build/icon.png",
+    "directories": {
+      "output": "release"
+    },
+    "artifactName": "APIForge-AI-${version}-${arch}.${ext}",
+    "files": [
+      "main.js",
+      "package.json",
+      "node_modules/**/*",
+      "!node_modules/.cache",
+      "backend/**/*",
+      "frontend/**/*"
+    ],
+    "mac": {
+      "category": "public.app-category.developer-tools",
+      "target": [
+        { "target": "dmg", "arch": ["x64", "arm64"] },
+        { "target": "zip", "arch": ["x64", "arm64"] }
+      ],
+      "identity": null
+    },
+    "asarUnpack": ["node_modules/better-sqlite3/**/*"]
+  }
+}
