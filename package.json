@@ -21,6 +21,6 @@
     "dist:mac": "npm run build:backend && npm run build:frontend && npm run dist:mac -w apps/desktop"
   },
   "engines": {
-    "node": ">=18.18"
+    "node": ">=22"
   }
 }
