@@ -33,6 +33,19 @@ jobs:
         with:
           node-version: 22
 
+      # better-sqlite3 ships prebuilt binaries and sets "gypfile": false to
+      # skip compiling from source — but npm still ends up invoking
+      # `node-gyp rebuild` for it on this runner (observed directly in CI;
+      # Node 22 alone didn't stop it). When node-gyp does run, it picks up
+      # the runner's Homebrew Python (3.14), which dropped the stdlib
+      # `distutils` module node-gyp's gyp_main.py still imports, so the
+      # build fails immediately with ModuleNotFoundError. Pinning a Python
+      # that still ships distutils (removed only in 3.12+) fixes that
+      # regardless of why the rebuild gets triggered.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
       - name: Install dependencies
         run: npm install
 
