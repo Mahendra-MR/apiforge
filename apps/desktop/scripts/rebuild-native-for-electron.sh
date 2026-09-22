@@ -23,6 +23,9 @@ mkdir -p "$BSQLITE_DIR/prebuilds"
 
 for ARCH in arm64 x64; do
   echo "=== Rebuilding better-sqlite3 for darwin-$ARCH ==="
+  MARKER="$(mktemp)"
+  sleep 1 # ensure the marker is strictly older than anything rebuilt below
+
   # --module-dir must be the directory that CONTAINS package.json (this
   # monorepo's root, where deps are hoisted to node_modules/), not the
   # node_modules folder itself -- @electron/rebuild's ModuleWalker reads
@@ -34,9 +37,19 @@ for ARCH in arm64 x64; do
     --arch "$ARCH" \
     --module-dir "$ROOT_DIR"
 
-  BUILT_NODE="$BSQLITE_DIR/build/Release/better_sqlite3.node"
-  if [ ! -f "$BUILT_NODE" ]; then
-    echo "ERROR: expected rebuilt binary not found at $BUILT_NODE" >&2
+  # Don't assume exactly which directory @electron/rebuild left the rebuilt
+  # binary in (it writes the raw node-gyp output under build/Release/, and
+  # separately copies it under bin/<platform>-<arch>-<abi>/ unless
+  # --disable-pre-gyp-copy was passed) -- just find whatever *.node file it
+  # just produced under the module, by modification time.
+  # (macOS ships BSD find, which has no -quit action like GNU find does, so
+  # just take the first line of plain output.)
+  BUILT_NODE="$(find "$BSQLITE_DIR" -name '*.node' -newer "$MARKER" | head -n 1)"
+  rm -f "$MARKER"
+  if [ -z "$BUILT_NODE" ]; then
+    echo "ERROR: no rebuilt .node file found under $BSQLITE_DIR after rebuilding for darwin-$ARCH" >&2
+    echo "Directory contents for debugging:" >&2
+    find "$BSQLITE_DIR" -name '*.node' >&2 || true
     exit 1
   fi
 
