@@ -15,12 +15,19 @@ cask "apiforge" do
   desc "Lightweight, AI-assisted API testing and development platform"
   homepage "https://github.com/Mahendra-MR/apiforge"
 
-  # Unsigned build (no Apple Developer account yet) — Homebrew installs it
-  # fine, but macOS Gatekeeper still blocks the first launch. Users need to
-  # right-click the app -> Open (or System Settings -> Privacy & Security ->
-  # "Open Anyway") once. There is no cask-level way around this without
-  # signing and notarizing the build.
+  # Unsigned build (no Apple Developer account yet). Modern macOS refuses to
+  # even show the old "unidentified developer -> Open Anyway" prompt for a
+  # zero-signature app — it just says the app "is damaged and can't be
+  # opened," which is Gatekeeper's wording for "no valid signature," not
+  # actual corruption. Stripping the quarantine flag Homebrew/macOS attaches
+  # on download avoids that dialog entirely, so do it automatically instead
+  # of asking every user to run xattr by hand.
   app "APIForge AI.app"
+
+  postflight do
+    system_command "/usr/bin/xattr",
+                    args: ["-cr", "#{appdir}/APIForge AI.app"]
+  end
 
   zap trash: [
     "~/Library/Application Support/APIForge AI",
