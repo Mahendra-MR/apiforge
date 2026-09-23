@@ -60,4 +60,33 @@ describe("RequestBuilder", () => {
     fireEvent.keyDown(window, { key: "Enter", ctrlKey: true });
     expect(onSend).toHaveBeenCalledOnce();
   });
+
+  it("imports a curl command pasted directly into the URL bar", () => {
+    render(<RequestBuilder onSend={() => {}} isSending={false} />);
+    const urlInput = screen.getByPlaceholderText(/api.example.com/i);
+
+    fireEvent.paste(urlInput, {
+      clipboardData: {
+        getData: () =>
+          `curl --request POST 'https://api.example.com/users' --header 'Authorization: Bearer abc123' --data '{"name":"John"}'`,
+      },
+    });
+
+    const draft = useRequestStore.getState().draft;
+    expect(draft.method).toBe("POST");
+    expect(draft.url).toBe("https://api.example.com/users");
+    expect(draft.authType).toBe("bearer");
+    expect(draft.auth.bearer.token).toBe("abc123");
+  });
+
+  it("leaves a plain URL paste alone instead of running it through the curl parser", () => {
+    render(<RequestBuilder onSend={() => {}} isSending={false} />);
+    const urlInput = screen.getByPlaceholderText(/api.example.com/i);
+
+    fireEvent.paste(urlInput, {
+      clipboardData: { getData: () => "https://api.example.com/users" },
+    });
+
+    expect(useRequestStore.getState().draft.url).toBe("");
+  });
 });

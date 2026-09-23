@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import { SaveRequestModal } from "../collections/SaveRequestModal";
 import { Tabs } from "../common/Tabs";
 import { Button } from "../common/Button";
 import { useRequestStore } from "../../store/useRequestStore";
+import { parseCurlCommand } from "../../lib/parseCurl";
 import { AuthTab } from "./AuthTab";
 import { ImportCurlModal } from "./ImportCurlModal";
 import { MethodSelect } from "./MethodSelect";
@@ -27,6 +29,7 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
   const draft = useRequestStore((s) => s.draft);
   const setMethod = useRequestStore((s) => s.setMethod);
   const setUrl = useRequestStore((s) => s.setUrl);
+  const loadFromCurl = useRequestStore((s) => s.loadFromCurl);
   const updateRow = useRequestStore((s) => s.updateRow);
   const removeRow = useRequestStore((s) => s.removeRow);
   const setBodyMode = useRequestStore((s) => s.setBodyMode);
@@ -45,6 +48,22 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
     return () => window.removeEventListener("keydown", handleKeydown);
   }, [onSend]);
 
+  // Pasting a full curl command (e.g. from a terminal or a browser's "Copy as
+  // cURL") straight into the URL bar imports it, matching Postman's smart
+  // paste — the same parser the Import modal uses, just triggered inline.
+  function handleUrlPaste(e: React.ClipboardEvent<HTMLInputElement>) {
+    const pasted = e.clipboardData.getData("text");
+    if (!/^\s*curl\s/i.test(pasted)) return; // not a curl command — let the normal paste happen
+    e.preventDefault();
+    const result = parseCurlCommand(pasted);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    loadFromCurl(result.result);
+    toast.success("Imported from cURL");
+  }
+
   const tabs = [
     { id: "params", label: "Params", badge: countActive(draft.params) },
     { id: "headers", label: "Headers", badge: countActive(draft.headers) },
@@ -59,6 +78,7 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
         <input
           value={draft.url}
           onChange={(e) => setUrl(e.target.value)}
+          onPaste={handleUrlPaste}
           placeholder="https://api.example.com/users"
           spellCheck={false}
           className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-2 font-mono text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
