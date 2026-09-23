@@ -20,6 +20,7 @@
  */
 const { app, BrowserWindow } = require("electron");
 const path = require("node:path");
+const { checkForUpdate } = require("./updateChecker");
 
 function resolveAppPaths() {
   return {
@@ -74,6 +75,15 @@ app.whenReady().then(async () => {
     app.quit();
     return;
   }
+
+  // Give the window a couple seconds to render before checking for an
+  // update, rather than racing a network call against startup.
+  setTimeout(() => {
+    checkForUpdate(app.getVersion(), mainWindow).catch((error) => {
+      // eslint-disable-next-line no-console
+      console.error("Update check failed:", error);
+    });
+  }, 3000);
 
   app.on("activate", () => {
     if (BrowserWindow.getAllWindows().length === 0 && backendServer) {

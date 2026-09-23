@@ -37,6 +37,7 @@
     "artifactName": "APIForge-AI-${version}-${arch}.${ext}",
     "files": [
       "main.js",
+      "updateChecker.js",
       "package.json",
       "node_modules/**/*",
       "!node_modules/.cache",
