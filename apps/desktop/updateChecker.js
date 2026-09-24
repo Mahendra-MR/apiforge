@@ -6,22 +6,22 @@
  * Developer certificate yet), and macOS's real auto-update mechanism
  * (Squirrel.Mac, via electron-updater) requires a signed app before it will
  * install an update — see https://www.electron.build/docs/features/auto-update/.
- * Until the app is signed and notarized, "Update" means "open the release
- * page so the user can download and drag-install the new build" — the same
- * manual step they'd do today, just surfaced automatically instead of
- * requiring them to go check GitHub themselves.
+ * Until the app is signed and notarized, the dialog hands over the one
+ * command that updates a Homebrew install (copied to the clipboard), or
+ * opens the release page for anyone who installed the .dmg by hand.
  */
-const { dialog, shell } = require("electron");
+const { clipboard, dialog, shell } = require("electron");
 const https = require("node:https");
 
 const REPO = "Mahendra-MR/apiforge";
 const RELEASE_API_URL = `https://api.github.com/repos/${REPO}/releases/latest`;
+const BREW_UPGRADE_COMMAND = "brew update && brew upgrade --cask apiforge";
 
 function fetchLatestRelease() {
   return new Promise((resolve, reject) => {
     const request = https.get(
       RELEASE_API_URL,
-      { headers: { "User-Agent": "APIForge-AI", Accept: "application/vnd.github+json" } },
+      { headers: { "User-Agent": "APIForge", Accept: "application/vnd.github+json" } },
       (response) => {
         if (response.statusCode !== 200) {
           response.resume(); // drain so the socket can be released
@@ -85,14 +85,18 @@ async function checkForUpdate(currentVersion, parentWindow) {
   const { response } = await dialog.showMessageBox(parentWindow, {
     type: "info",
     title: "Update available",
-    message: `APIForge AI ${release.tag_name} is available`,
-    detail: "You're running an older version. Open the release page to download and install it.",
-    buttons: ["Update", "Later"],
+    message: `APIForge ${release.tag_name} is available`,
+    detail:
+      `You're running ${currentVersion}. Installed with Homebrew? Run this in Terminal, then reopen APIForge:\n\n` +
+      `${BREW_UPGRADE_COMMAND}\n\nOtherwise, download the new version from the release page.`,
+    buttons: ["Copy Homebrew Command", "Open Release Page", "Later"],
     defaultId: 0,
-    cancelId: 1,
+    cancelId: 2,
   });
 
   if (response === 0) {
+    clipboard.writeText(BREW_UPGRADE_COMMAND);
+  } else if (response === 1) {
     shell.openExternal(release.html_url ?? `https://github.com/${REPO}/releases/latest`);
   }
 }

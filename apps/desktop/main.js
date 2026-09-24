@@ -1,5 +1,5 @@
 /**
- * APIForge AI desktop shell.
+ * APIForge desktop shell.
  *
  * Runs the existing Express backend (unchanged app logic — see
  * apps/backend/src/app.ts) in-process, bound to a random free port on
@@ -19,8 +19,29 @@
  * siblings of node_modules inside the same app.asar.
  */
 const { app, BrowserWindow } = require("electron");
+const fs = require("node:fs");
 const path = require("node:path");
 const { checkForUpdate } = require("./updateChecker");
+
+const APP_NAME = "APIForge";
+// The app was called "APIForge AI" before 0.3.2, and Electron names the
+// per-user data folder after the app. Keep using an older folder when it
+// already holds a database, so renaming the app never strands anyone's
+// collections, environments or history.
+const LEGACY_DATA_DIR_NAMES = ["APIForge AI", "@apiforge/desktop"];
+
+function resolveUserDataDir() {
+  const appData = app.getPath("appData");
+  const legacy = LEGACY_DATA_DIR_NAMES.map((name) => path.join(appData, name)).find((dir) =>
+    fs.existsSync(path.join(dir, "apiforge.db")),
+  );
+  return legacy ?? path.join(appData, APP_NAME);
+}
+
+// Must run before the app is ready so Chromium's own storage (theme, the
+// autosaved draft) lands in the same folder as the database.
+app.setName(APP_NAME);
+app.setPath("userData", resolveUserDataDir());
 
 function resolveAppPaths() {
   return {
@@ -56,7 +77,7 @@ function createWindow(port) {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: "APIForge AI",
+    title: APP_NAME,
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,

@@ -2,7 +2,7 @@
   "name": "@apiforge/desktop",
   "private": true,
   "version": "0.3.1",
-  "description": "APIForge AI packaged as a native macOS desktop app (Electron shell around the existing Express backend + React frontend, with an embedded SQLite database).",
+  "description": "APIForge packaged as a native macOS desktop app (Electron shell around the existing Express backend + React frontend, with an embedded SQLite database).",
   "main": "main.js",
   "scripts": {
     "copy-embed": "rm -rf backend frontend && mkdir -p backend frontend && cp -R ../backend/dist/. backend/ && echo '{\"type\":\"module\"}' > backend/package.json && cp -R ../frontend/dist/. frontend/",
@@ -27,14 +27,14 @@
   },
   "build": {
     "appId": "dev.apiforge.desktop",
-    "productName": "APIForge AI",
+    "productName": "APIForge",
     "electronVersion": "35.7.5",
     "icon": "build/icon.png",
     "npmRebuild": false,
     "directories": {
       "output": "release"
     },
-    "artifactName": "APIForge-AI-${version}-${arch}.${ext}",
+    "artifactName": "APIForge-${version}-${arch}.${ext}",
     "files": [
       "main.js",
       "updateChecker.js",

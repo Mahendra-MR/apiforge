@@ -1,4 +1,4 @@
-# APIForge AI
+# APIForge
 
 A lightweight, AI-assisted API testing and development platform — a leaner alternative to Postman with an integrated AI assistant. This repo is being built incrementally; see [Build Phases](#build-phases) for what's done and what's next.
 

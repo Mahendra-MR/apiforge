@@ -31,8 +31,8 @@ if ! curl -sf "https://api.github.com/repos/$REPO/releases/tags/v$VERSION" \
   exit 1
 fi
 
-ARM_URL="https://github.com/$REPO/releases/download/v$VERSION/APIForge-AI-$VERSION-arm64.dmg"
-INTEL_URL="https://github.com/$REPO/releases/download/v$VERSION/APIForge-AI-$VERSION-x64.dmg"
+ARM_URL="https://github.com/$REPO/releases/download/v$VERSION/APIForge-$VERSION-arm64.dmg"
+INTEL_URL="https://github.com/$REPO/releases/download/v$VERSION/APIForge-$VERSION-x64.dmg"
 
 echo "Downloading arm64 build..."
 curl -sfL "$ARM_URL" -o "$TMP_DIR/arm64.dmg"
