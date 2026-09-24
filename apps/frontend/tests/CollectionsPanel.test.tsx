@@ -108,7 +108,7 @@ describe("CollectionsPanel", () => {
     expect(useRequestStore.getState().draft.collectionId).toBe("c1");
   });
 
-  it("deletes a saved request", async () => {
+  it("deletes a saved request after confirming", async () => {
     fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [savedRequest()] });
     deleteSavedRequestMock.mockResolvedValue(undefined);
 
@@ -117,6 +117,9 @@ describe("CollectionsPanel", () => {
 
     await screen.findByText("Get users");
     await user.click(screen.getByLabelText(/delete request get users/i));
+    expect(deleteSavedRequestMock).not.toHaveBeenCalled();
+
+    await user.click(await screen.findByRole("button", { name: /^delete$/i }));
 
     await waitFor(() => expect(deleteSavedRequestMock).toHaveBeenCalledWith("r1"));
   });
@@ -132,7 +135,7 @@ describe("CollectionsPanel", () => {
     expect(await screen.findByText(/import collection/i)).toBeInTheDocument();
   });
 
-  it("deletes a folder", async () => {
+  it("deletes a folder after confirming from its menu", async () => {
     fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [] });
     deleteCollectionMock.mockResolvedValue(undefined);
 
@@ -140,8 +143,26 @@ describe("CollectionsPanel", () => {
     renderWithQueryClient(<CollectionsPanel />);
 
     await screen.findByDisplayValue("My Folder");
-    await user.click(screen.getByLabelText(/delete folder my folder/i));
+    await user.click(screen.getByLabelText(/more options for my folder/i));
+    await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
+    expect(deleteCollectionMock).not.toHaveBeenCalled();
+
+    await user.click(await screen.findByRole("button", { name: /^delete$/i }));
 
     await waitFor(() => expect(deleteCollectionMock).toHaveBeenCalledWith("c1"));
+  });
+
+  it("shares a folder as a Postman collection export", async () => {
+    fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [savedRequest()] });
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+
+    await screen.findByDisplayValue("My Folder");
+    await user.click(screen.getByLabelText(/more options for my folder/i));
+    await user.click(await screen.findByRole("menuitem", { name: /share/i }));
+
+    expect(await screen.findByText(/share "my folder"/i)).toBeInTheDocument();
+    expect(screen.getByText(/exports just this folder/i)).toBeInTheDocument();
   });
 });

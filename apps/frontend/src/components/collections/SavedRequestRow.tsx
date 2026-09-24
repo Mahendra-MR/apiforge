@@ -1,7 +1,9 @@
+import { useState } from "react";
 import clsx from "clsx";
 import { Trash2 } from "lucide-react";
 import { METHOD_TEXT_COLOR } from "../../lib/methodColors";
 import { useRequestStore } from "../../store/useRequestStore";
+import { ConfirmDialog } from "../common/ConfirmDialog";
 import type { SavedRequest } from "../../types";
 
 interface SavedRequestRowProps {
@@ -13,6 +15,7 @@ interface SavedRequestRowProps {
 
 export function SavedRequestRow({ request, depth, onOpen, onDelete }: SavedRequestRowProps) {
   const isActive = useRequestStore((s) => s.draft.savedRequestId === request.id);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   return (
     <div
@@ -36,12 +39,20 @@ export function SavedRequestRow({ request, depth, onOpen, onDelete }: SavedReque
         </span>
       </button>
       <button
-        onClick={onDelete}
+        onClick={() => setConfirmingDelete(true)}
         aria-label={`Delete request ${request.name}`}
         className="shrink-0 rounded p-1 text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100 dark:text-slate-600"
       >
         <Trash2 size={13} />
       </button>
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete request?"
+        message={`"${request.name}" will be removed from this folder. This can't be undone.`}
+        onConfirm={onDelete}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   );
 }

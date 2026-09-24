@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Folder, FolderOpen, Plus, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Folder, FolderOpen, MoreVertical, Plus, Share2, Trash2 } from "lucide-react";
 import { useCreateCollection, useDeleteCollection, useUpdateCollection } from "../../hooks/useCollections";
 import { useDeleteSavedRequest } from "../../hooks/useSavedRequests";
 import type { CollectionTreeNode } from "../../lib/collectionsTree";
 import { useRequestStore } from "../../store/useRequestStore";
+import { ConfirmDialog } from "../common/ConfirmDialog";
+import { MenuItem, Popover } from "../common/Popover";
 import { SavedRequestRow } from "./SavedRequestRow";
+import { ShareCollectionModal } from "./ShareCollectionModal";
 
 interface CollectionNodeProps {
   node: CollectionTreeNode;
@@ -17,6 +20,8 @@ export function CollectionNode({ node, depth }: CollectionNodeProps) {
   const [name, setName] = useState(node.collection.name);
   const [addingSubfolder, setAddingSubfolder] = useState(false);
   const [subfolderName, setSubfolderName] = useState("");
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const [sharing, setSharing] = useState(false);
 
   const updateCollection = useUpdateCollection();
   const deleteCollection = useDeleteCollection();
@@ -69,13 +74,31 @@ export function CollectionNode({ node, depth }: CollectionNodeProps) {
         >
           <Plus size={13} />
         </button>
-        <button
-          onClick={() => deleteCollection.mutate(node.collection.id)}
-          aria-label={`Delete folder ${node.collection.name}`}
-          className="shrink-0 rounded p-1 text-slate-300 opacity-0 hover:bg-slate-200 hover:text-red-500 group-hover:opacity-100 dark:text-slate-600 dark:hover:bg-white/10"
+        <Popover
+          align="right"
+          width="min-w-[150px]"
+          trigger={(toggle) => (
+            <button
+              onClick={toggle}
+              aria-label={`More options for ${node.collection.name}`}
+              title="More options"
+              className="shrink-0 rounded p-1 text-slate-400 opacity-0 hover:bg-slate-200 group-hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/10"
+            >
+              <MoreVertical size={13} />
+            </button>
+          )}
         >
-          <Trash2 size={13} />
-        </button>
+          {(close) => (
+            <>
+              <MenuItem icon={<Share2 size={13} />} onClick={() => { setSharing(true); close(); }}>
+                Share
+              </MenuItem>
+              <MenuItem icon={<Trash2 size={13} />} danger onClick={() => { setConfirmingDelete(true); close(); }}>
+                Delete
+              </MenuItem>
+            </>
+          )}
+        </Popover>
       </div>
 
       {expanded && (
@@ -112,6 +135,15 @@ export function CollectionNode({ node, depth }: CollectionNodeProps) {
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete folder?"
+        message={`This deletes "${node.collection.name}" and everything inside it — subfolders and saved requests included. This can't be undone.`}
+        onConfirm={() => deleteCollection.mutate(node.collection.id)}
+        onCancel={() => setConfirmingDelete(false)}
+      />
+      {sharing && <ShareCollectionModal node={node} onClose={() => setSharing(false)} />}
     </div>
   );
 }
