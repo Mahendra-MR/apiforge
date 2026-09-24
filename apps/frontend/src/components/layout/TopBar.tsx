@@ -9,8 +9,11 @@ import { ThemeToggle } from "../common/ThemeToggle";
 export function TopBar() {
   const [managerOpen, setManagerOpen] = useState(false);
   const { data: environments } = useEnvironmentsList();
+  // The top bar only switches the app-wide global environment — a folder's
+  // own environment is managed from that folder's "⋮" menu instead.
+  const globalEnvironments = environments?.filter((environment) => environment.collectionId === null);
   const activateEnvironment = useActivateEnvironment();
-  const activeId = environments?.find((environment) => environment.isActive)?.id ?? "";
+  const activeId = globalEnvironments?.find((environment) => environment.isActive)?.id ?? "";
 
   return (
     <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-surface-dark-subtle">
@@ -23,7 +26,7 @@ export function TopBar() {
 
       <div className="flex items-center gap-1.5">
         <EnvironmentSelect
-          environments={environments}
+          environments={globalEnvironments}
           activeId={activeId}
           onSelect={(id) => activateEnvironment.mutate(id)}
         />

@@ -6,8 +6,16 @@ export async function fetchEnvironments(): Promise<Environment[]> {
   return environments;
 }
 
-export function createEnvironment(name: string): Promise<Environment> {
-  return apiFetch<Environment>("/environments", { method: "POST", body: JSON.stringify({ name }) });
+/**
+ * Creates an environment. Omit `collectionId` (or pass null) for a global,
+ * app-wide environment — the request body then has no `collectionId` key at
+ * all, matching the API's shape from before per-folder environments existed.
+ * Pass a folder id to bind it to that top-level folder's subtree instead.
+ */
+export function createEnvironment(name: string, collectionId?: string | null): Promise<Environment> {
+  const payload: { name: string; collectionId?: string } = { name };
+  if (collectionId) payload.collectionId = collectionId;
+  return apiFetch<Environment>("/environments", { method: "POST", body: JSON.stringify(payload) });
 }
 
 export function renameEnvironment(id: string, name: string): Promise<Environment> {

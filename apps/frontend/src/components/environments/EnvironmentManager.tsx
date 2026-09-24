@@ -18,6 +18,8 @@ import { Modal } from "../common/Modal";
 interface EnvironmentManagerProps {
   open: boolean;
   onClose: () => void;
+  /** When set, scopes this manager to one top-level folder's own environments instead of the app-wide global list, and binds anything created here to that folder. */
+  scope?: { collectionId: string; collectionName: string };
 }
 
 interface VariableRowProps {
@@ -210,24 +212,30 @@ function EnvironmentSection({ environment, expanded, onToggleExpanded }: Environ
 }
 
 /** Modal for managing environments and their variables: create/rename/delete environments, switch which is active, and add/edit/delete variables with secret masking. */
-export function EnvironmentManager({ open, onClose }: EnvironmentManagerProps) {
-  const { data: environments, isLoading } = useEnvironmentsList();
+export function EnvironmentManager({ open, onClose, scope }: EnvironmentManagerProps) {
+  const { data: allEnvironments, isLoading } = useEnvironmentsList();
+  const environments = allEnvironments?.filter((environment) =>
+    scope ? environment.collectionId === scope.collectionId : environment.collectionId === null,
+  );
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [newEnvironmentName, setNewEnvironmentName] = useState("");
   const createEnvironment = useCreateEnvironment();
 
   function handleCreate() {
     if (newEnvironmentName.trim() === "") return;
-    createEnvironment.mutate(newEnvironmentName.trim(), {
-      onSuccess: (created) => {
-        setNewEnvironmentName("");
-        setExpandedId(created.id);
+    createEnvironment.mutate(
+      { name: newEnvironmentName.trim(), collectionId: scope?.collectionId ?? null },
+      {
+        onSuccess: (created) => {
+          setNewEnvironmentName("");
+          setExpandedId(created.id);
+        },
       },
-    });
+    );
   }
 
   return (
-    <Modal open={open} title="Manage Environments" onClose={onClose} size="lg">
+    <Modal open={open} title={scope ? `Environment — ${scope.collectionName}` : "Manage Environments"} onClose={onClose} size="lg">
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
           <input
@@ -251,7 +259,11 @@ export function EnvironmentManager({ open, onClose }: EnvironmentManagerProps) {
         {!isLoading && environments && environments.length === 0 && (
           <EmptyState
             title="No environments yet"
-            description="Create one above to store variables like {{baseUrl}} that your requests can reference."
+            description={
+              scope
+                ? `Create one above to store variables like {{baseUrl}} just for requests saved in "${scope.collectionName}".`
+                : "Create one above to store variables like {{baseUrl}} that your requests can reference."
+            }
           />
         )}
 

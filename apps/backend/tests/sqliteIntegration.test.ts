@@ -52,6 +52,36 @@ describe("SQLite integration (real, unmocked pool)", () => {
     expect(firstAfter?.isActive).toBe(false);
   });
 
+  it("scopes a folder's environment independently of the global one and of other folders", async () => {
+    const folderA = await collectionsService.createCollection(DEFAULT_USER_ID, { name: "Folder A" });
+    const folderB = await collectionsService.createCollection(DEFAULT_USER_ID, { name: "Folder B" });
+
+    const globalEnv = (await environmentsService.listEnvironments(DEFAULT_USER_ID)).find((e) => e.collectionId === null);
+    const folderAEnv = await environmentsService.createEnvironment(DEFAULT_USER_ID, "Folder A env", folderA.id);
+    expect(folderAEnv.isActive).toBe(true); // first environment scoped to Folder A, regardless of the global scope's own state
+
+    const folderAEnvTwo = await environmentsService.createEnvironment(DEFAULT_USER_ID, "Folder A env 2", folderA.id);
+    expect(folderAEnvTwo.isActive).toBe(false);
+
+    const folderBEnv = await environmentsService.createEnvironment(DEFAULT_USER_ID, "Folder B env", folderB.id);
+    expect(folderBEnv.isActive).toBe(true); // Folder B's own first environment, unaffected by Folder A
+
+    await environmentsService.setActiveEnvironment(folderAEnvTwo.id, DEFAULT_USER_ID);
+
+    const all = await environmentsService.listEnvironments(DEFAULT_USER_ID);
+    expect(all.find((e) => e.id === folderAEnvTwo.id)?.isActive).toBe(true);
+    expect(all.find((e) => e.id === folderAEnv.id)?.isActive).toBe(false); // deactivated — same scope (Folder A)
+    expect(all.find((e) => e.id === folderBEnv.id)?.isActive).toBe(true); // untouched — different scope (Folder B)
+    if (globalEnv) {
+      expect(all.find((e) => e.id === globalEnv.id)?.isActive).toBe(globalEnv.isActive); // untouched — different scope (global)
+    }
+
+    // Deleting the folder cascades to the environment scoped to it, same as it already does for subfolders/requests.
+    await collectionsService.deleteCollection(folderA.id, DEFAULT_USER_ID);
+    const afterDelete = await environmentsService.listEnvironments(DEFAULT_USER_ID);
+    expect(afterDelete.some((e) => e.id === folderAEnv.id || e.id === folderAEnvTwo.id)).toBe(false);
+  });
+
   it("rejects moving a collection into its own descendant (cycle prevention over real rows)", async () => {
     const parent = await collectionsService.createCollection(DEFAULT_USER_ID, { name: "Parent" });
     const child = await collectionsService.createCollection(DEFAULT_USER_ID, { name: "Child", parentId: parent.id });

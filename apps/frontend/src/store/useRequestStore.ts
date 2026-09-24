@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { bodyTypeToBodyMode } from "../lib/bodyType";
+import { loadDraftFromStorage, saveDraftToStorage } from "../lib/draftStorage";
 import { createRowId } from "../lib/id";
 import type { ParsedCurlRequest } from "../lib/parseCurl";
 import type {
@@ -36,6 +37,11 @@ function createDraft(): RequestDraft {
     authType: "none",
     auth: createEmptyAuthConfig(),
   };
+}
+
+/** The draft a fresh session starts from: whatever was last autosaved, or a blank one if there's nothing to restore. */
+function initialDraft(): RequestDraft {
+  return loadDraftFromStorage() ?? createDraft();
 }
 
 function rowsFromEntries(entries: [string, string][]): KeyValueRow[] {
@@ -96,7 +102,7 @@ function withTrailingEmptyRow(rows: KeyValueRow[]): KeyValueRow[] {
 }
 
 export const useRequestStore = create<RequestState>((set) => ({
-  draft: createDraft(),
+  draft: initialDraft(),
 
   setMethod: (method) => set((state) => ({ draft: { ...state.draft, method } })),
   setUrl: (url) => set((state) => ({ draft: { ...state.draft, url } })),
@@ -226,3 +232,8 @@ export const useRequestStore = create<RequestState>((set) => ({
 
   reset: () => set({ draft: createDraft() }),
 }));
+
+// Autosaves the draft to local storage on every change, so an in-progress
+// request survives a reload without the user having to explicitly save it
+// into a collection first.
+useRequestStore.subscribe((state) => saveDraftToStorage(state.draft));

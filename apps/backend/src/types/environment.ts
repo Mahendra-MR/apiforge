@@ -12,6 +12,8 @@ export interface Environment {
   id: string;
   userId: string;
   name: string;
+  /** null = the global/app-wide environment; set = scoped to that folder's subtree. */
+  collectionId: string | null;
   isActive: boolean;
   variables: EnvironmentVariable[];
   createdAt: string;
@@ -22,6 +24,7 @@ export interface EnvironmentRow {
   id: string;
   user_id: string;
   name: string;
+  collection_id: string | null;
   /** SQLite has no native boolean type — better-sqlite3 returns this column as 0 or 1. */
   is_active: boolean | 0 | 1;
   created_at: string;
@@ -56,6 +59,7 @@ export function mapEnvironmentRow(row: EnvironmentRow, variables: EnvironmentVar
     id: row.id,
     userId: row.user_id,
     name: row.name,
+    collectionId: row.collection_id,
     isActive: Boolean(row.is_active),
     variables,
     createdAt: row.created_at,

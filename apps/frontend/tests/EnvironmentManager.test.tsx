@@ -30,6 +30,7 @@ function environment(overrides: Partial<Environment> = {}): Environment {
     id: "e1",
     userId: "u1",
     name: "Local",
+    collectionId: null,
     isActive: true,
     variables: [],
     createdAt: "2026-01-01T00:00:00.000Z",
@@ -68,7 +69,32 @@ describe("EnvironmentManager", () => {
     await user.type(screen.getByPlaceholderText(/new environment name/i), "Staging");
     await user.click(screen.getByRole("button", { name: "Create" }));
 
+    // A global environment (no scope prop) is created with a single argument —
+    // no explicit `undefined` collectionId — matching the API's shape from
+    // before per-folder environments existed.
     await waitFor(() => expect(createEnvironmentMock).toHaveBeenCalledWith("Staging"));
+  });
+
+  it("only lists and creates environments for the given folder when scoped", async () => {
+    fetchEnvironmentsMock.mockResolvedValue([
+      environment({ id: "e1", name: "Global", collectionId: null }),
+      environment({ id: "e2", name: "Staging API", collectionId: "folder-1" }),
+    ]);
+    createEnvironmentMock.mockResolvedValue(environment({ id: "e3", name: "Prod API", collectionId: "folder-1" }));
+
+    const user = userEvent.setup();
+    renderWithQueryClient(
+      <EnvironmentManager open onClose={() => {}} scope={{ collectionId: "folder-1", collectionName: "My API" }} />,
+    );
+
+    expect(await screen.findByDisplayValue("Staging API")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("Global")).not.toBeInTheDocument();
+    expect(screen.getByText(/environment — my api/i)).toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText(/new environment name/i), "Prod API");
+    await user.click(screen.getByRole("button", { name: "Create" }));
+
+    await waitFor(() => expect(createEnvironmentMock).toHaveBeenCalledWith("Prod API", "folder-1"));
   });
 
   it("activates a non-active environment", async () => {

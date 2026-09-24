@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Folder, FolderOpen, MoreVertical, Plus, Share2, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronRight, Folder, FolderOpen, Layers, MoreVertical, Plus, Share2, Trash2 } from "lucide-react";
 import { useCreateCollection, useDeleteCollection, useUpdateCollection } from "../../hooks/useCollections";
 import { useDeleteSavedRequest } from "../../hooks/useSavedRequests";
 import type { CollectionTreeNode } from "../../lib/collectionsTree";
 import { useRequestStore } from "../../store/useRequestStore";
 import { ConfirmDialog } from "../common/ConfirmDialog";
 import { MenuItem, Popover } from "../common/Popover";
+import { EnvironmentManager } from "../environments/EnvironmentManager";
 import { SavedRequestRow } from "./SavedRequestRow";
 import { ShareCollectionModal } from "./ShareCollectionModal";
 
@@ -22,6 +23,11 @@ export function CollectionNode({ node, depth }: CollectionNodeProps) {
   const [subfolderName, setSubfolderName] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [sharing, setSharing] = useState(false);
+  const [managingEnvironment, setManagingEnvironment] = useState(false);
+  // Per-folder environments are bound to a top-level folder's subtree, so
+  // the option to manage one only appears on root folders, not every
+  // nested subfolder.
+  const isTopLevel = depth === 0;
 
   const updateCollection = useUpdateCollection();
   const deleteCollection = useDeleteCollection();
@@ -90,6 +96,11 @@ export function CollectionNode({ node, depth }: CollectionNodeProps) {
         >
           {(close) => (
             <>
+              {isTopLevel && (
+                <MenuItem icon={<Layers size={13} />} onClick={() => { setManagingEnvironment(true); close(); }}>
+                  Environment
+                </MenuItem>
+              )}
               <MenuItem icon={<Share2 size={13} />} onClick={() => { setSharing(true); close(); }}>
                 Share
               </MenuItem>
@@ -144,6 +155,13 @@ export function CollectionNode({ node, depth }: CollectionNodeProps) {
         onCancel={() => setConfirmingDelete(false)}
       />
       {sharing && <ShareCollectionModal node={node} onClose={() => setSharing(false)} />}
+      {managingEnvironment && (
+        <EnvironmentManager
+          open
+          onClose={() => setManagingEnvironment(false)}
+          scope={{ collectionId: node.collection.id, collectionName: node.collection.name }}
+        />
+      )}
     </div>
   );
 }

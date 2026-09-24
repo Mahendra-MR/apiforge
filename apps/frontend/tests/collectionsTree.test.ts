@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCollectionsTree, flattenCollectionsForSelect } from "../src/lib/collectionsTree";
+import { buildCollectionsTree, findTopLevelAncestorId, flattenCollectionsForSelect } from "../src/lib/collectionsTree";
 import type { Collection, SavedRequest } from "../src/types";
 
 function collection(overrides: Partial<Collection> = {}): Collection {
@@ -85,5 +85,28 @@ describe("flattenCollectionsForSelect", () => {
       { id: "child", label: "— Child" },
       { id: "grandchild", label: "— — Grandchild" },
     ]);
+  });
+});
+
+describe("findTopLevelAncestorId", () => {
+  it("returns null for a request with no folder", () => {
+    expect(findTopLevelAncestorId([], null)).toBeNull();
+  });
+
+  it("returns the folder itself when it's already top-level", () => {
+    const root = collection({ id: "root", parentId: null });
+    expect(findTopLevelAncestorId([root], "root")).toBe("root");
+  });
+
+  it("walks up nested subfolders to their top-level ancestor", () => {
+    const root = collection({ id: "root", parentId: null });
+    const child = collection({ id: "child", parentId: "root" });
+    const grandchild = collection({ id: "grandchild", parentId: "child" });
+
+    expect(findTopLevelAncestorId([root, child, grandchild], "grandchild")).toBe("root");
+  });
+
+  it("returns null for a collection id that isn't in the list", () => {
+    expect(findTopLevelAncestorId([], "missing")).toBeNull();
   });
 });

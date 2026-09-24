@@ -51,16 +51,25 @@ async function getEnvironmentOrThrow(id: string, userId: string): Promise<Enviro
 
 export { getEnvironmentOrThrow as getEnvironment };
 
-/** Creates a new environment. The user's first environment is activated automatically for convenience. */
-export async function createEnvironment(userId: string, name: string): Promise<Environment> {
-  const { rows: existing } = await pool.query("SELECT 1 FROM environments WHERE user_id = $1 LIMIT 1", [userId]);
-  const isFirstEnvironment = existing.length === 0;
+/**
+ * Creates a new environment, optionally scoped to a folder (`collectionId`).
+ * The first environment in a given scope is activated automatically for
+ * convenience — "first ever for this user" when global, "first for this
+ * folder" when scoped, so scoping one folder's environments doesn't affect
+ * whether a sibling folder (or the global scope) already has an active one.
+ */
+export async function createEnvironment(userId: string, name: string, collectionId: string | null = null): Promise<Environment> {
+  const { rows: existing } = await pool.query(
+    "SELECT 1 FROM environments WHERE user_id = $1 AND collection_id IS $2 LIMIT 1",
+    [userId, collectionId],
+  );
+  const isFirstInScope = existing.length === 0;
 
   const timestamp = nowIso();
   const result = await pool.query<EnvironmentRow>(
-    `INSERT INTO environments (id, user_id, name, is_active, created_at, updated_at)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [newId(), userId, name, toDbBool(isFirstEnvironment), timestamp, timestamp],
+    `INSERT INTO environments (id, user_id, name, collection_id, is_active, created_at, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+    [newId(), userId, name, collectionId, toDbBool(isFirstInScope), timestamp, timestamp],
   );
   return mapEnvironmentRow(result.rows[0], []);
 }
@@ -74,20 +83,30 @@ export async function renameEnvironment(id: string, userId: string, name: string
   return getEnvironmentOrThrow(id, userId);
 }
 
-/** Activates one environment and deactivates all others for the user, atomically. */
+/**
+ * Activates one environment and deactivates its siblings — every other
+ * environment sharing the same scope (the same folder, or the same global
+ * scope when `collection_id` is null) — atomically. Environments in a
+ * different scope are untouched, so activating a folder's environment never
+ * disturbs the global active one or another folder's.
+ */
 export async function setActiveEnvironment(id: string, userId: string): Promise<Environment | null> {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
     const updated = await client.query<EnvironmentRow>(
-      `UPDATE environments SET is_active = true, updated_at = $1 WHERE id = $2 AND user_id = $3 RETURNING id`,
+      `UPDATE environments SET is_active = true, updated_at = $1 WHERE id = $2 AND user_id = $3 RETURNING *`,
       [nowIso(), id, userId],
     );
     if (updated.rows.length === 0) {
       await client.query("ROLLBACK");
       return null;
     }
-    await client.query(`UPDATE environments SET is_active = false WHERE user_id = $1 AND id != $2`, [userId, id]);
+    const scopeCollectionId = updated.rows[0].collection_id;
+    await client.query(
+      `UPDATE environments SET is_active = false WHERE user_id = $1 AND id != $2 AND collection_id IS $3`,
+      [userId, id, scopeCollectionId],
+    );
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");

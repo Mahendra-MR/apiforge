@@ -12,6 +12,8 @@ import {
   type UpsertVariableInput,
 } from "../api/environments";
 import { ApiClientError } from "../api/client";
+import { findTopLevelAncestorId } from "../lib/collectionsTree";
+import { useCollectionsTree } from "./useCollections";
 
 export function environmentsQueryKey() {
   return ["environments"] as const;
@@ -25,12 +27,32 @@ export function useEnvironmentsList() {
   return useQuery({ queryKey: environmentsQueryKey(), queryFn: fetchEnvironments });
 }
 
-/** The active environment's variables as a flat key→value map, ready for `resolveVariables`/`buildExecutePayload`. Empty when no environment is active (or none exist yet). */
+function variablesAsMap(variables: { key: string; value: string }[]): Record<string, string> {
+  return Object.fromEntries(variables.map((variable) => [variable.key, variable.value]));
+}
+
+/** The active *global* environment's variables — i.e. ignoring any folder-scoped environment. Used where there's no request/folder context to scope by (e.g. the top bar's own environment switcher). Empty when no global environment is active. */
 export function useActiveEnvironmentVariables(): Record<string, string> {
   const { data: environments } = useEnvironmentsList();
-  const active = environments?.find((environment) => environment.isActive);
-  if (!active) return {};
-  return Object.fromEntries(active.variables.map((variable) => [variable.key, variable.value]));
+  const active = environments?.find((environment) => environment.isActive && environment.collectionId === null);
+  return active ? variablesAsMap(active.variables) : {};
+}
+
+/**
+ * The variables that actually apply to a request saved in `collectionId`:
+ * that folder's own top-level environment when one is active, otherwise the
+ * app-wide global active environment. Pass `null` for a request that isn't
+ * saved into a folder yet, which always resolves to the global environment.
+ */
+export function useEffectiveEnvironmentVariables(collectionId: string | null): Record<string, string> {
+  const { data: environments } = useEnvironmentsList();
+  const { data: collectionsData } = useCollectionsTree();
+  const topLevelId = findTopLevelAncestorId(collectionsData?.collections ?? [], collectionId);
+
+  const scoped = topLevelId ? environments?.find((e) => e.collectionId === topLevelId && e.isActive) : undefined;
+  const active = scoped ?? environments?.find((e) => e.collectionId === null && e.isActive);
+
+  return active ? variablesAsMap(active.variables) : {};
 }
 
 /** Wraps a mutation that only needs to invalidate the environments list on success and toast on failure — every mutation below follows this same shape. */
@@ -47,7 +69,14 @@ function useEnvironmentsMutation<TVariables, TData>(
 }
 
 export function useCreateEnvironment() {
-  return useEnvironmentsMutation((name: string) => createEnvironment(name), "Failed to create environment");
+  return useEnvironmentsMutation(
+    ({ name, collectionId }: { name: string; collectionId?: string | null }) =>
+      // Only pass collectionId through when it's actually set — createEnvironment(name)
+      // with a single argument is what makes a global environment, same as before
+      // per-folder environments existed.
+      collectionId ? createEnvironment(name, collectionId) : createEnvironment(name),
+    "Failed to create environment",
+  );
 }
 
 export function useRenameEnvironment() {

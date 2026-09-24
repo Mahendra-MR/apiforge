@@ -12,6 +12,7 @@ function envRow(overrides: Partial<Record<string, unknown>> = {}) {
     id: "env-1",
     user_id: "user-1",
     name: "Development",
+    collection_id: null,
     is_active: 1,
     created_at: "2026-01-01T00:00:00.000Z",
     updated_at: "2026-01-01T00:00:00.000Z",
@@ -65,12 +66,15 @@ describe("environmentsService", () => {
 
     await environmentsService.createEnvironment("user-1", "Development");
 
+    expect(poolMock.query.mock.calls[0][1]).toEqual(["user-1", null]); // scoped to the global (null) group
+
     const insertCall = poolMock.query.mock.calls[1];
     expect(insertCall[1]).toEqual([
       expect.any(String), // id
       "user-1",
       "Development",
-      1, // isFirstEnvironment, converted to 0/1 for SQLite
+      null, // collectionId — global
+      1, // isFirstInScope, converted to 0/1 for SQLite
       expect.any(String), // created_at
       expect.any(String), // updated_at
     ]);
@@ -88,7 +92,28 @@ describe("environmentsService", () => {
       expect.any(String),
       "user-1",
       "Staging",
+      null,
       0,
+      expect.any(String),
+      expect.any(String),
+    ]);
+  });
+
+  it("createEnvironment scoped to a folder only checks that folder's own group for a first environment", async () => {
+    poolMock.query
+      .mockResolvedValueOnce({ rows: [] }) // no environment yet scoped to "folder-1"
+      .mockResolvedValueOnce({ rows: [envRow({ collection_id: "folder-1", is_active: 1 })] });
+
+    await environmentsService.createEnvironment("user-1", "Loan Accounts env", "folder-1");
+
+    expect(poolMock.query.mock.calls[0][1]).toEqual(["user-1", "folder-1"]);
+    const insertCall = poolMock.query.mock.calls[1];
+    expect(insertCall[1]).toEqual([
+      expect.any(String),
+      "user-1",
+      "Loan Accounts env",
+      "folder-1",
+      1, // first environment scoped to "folder-1" — activated regardless of the global scope's own active environment
       expect.any(String),
       expect.any(String),
     ]);
@@ -97,7 +122,7 @@ describe("environmentsService", () => {
   it("setActiveEnvironment activates the target and deactivates the rest inside a transaction", async () => {
     clientMock.query
       .mockResolvedValueOnce(undefined) // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: "env-1" }] }) // activate target
+      .mockResolvedValueOnce({ rows: [{ id: "env-1", collection_id: null }] }) // activate target
       .mockResolvedValueOnce(undefined) // deactivate others
       .mockResolvedValueOnce(undefined); // COMMIT
     poolMock.query
@@ -110,6 +135,23 @@ describe("environmentsService", () => {
     expect(clientMock.query).toHaveBeenCalledWith("BEGIN");
     expect(clientMock.query).toHaveBeenCalledWith("COMMIT");
     expect(clientMock.release).toHaveBeenCalledOnce();
+  });
+
+  it("setActiveEnvironment only deactivates siblings in the same scope", async () => {
+    clientMock.query
+      .mockResolvedValueOnce(undefined) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: "env-2", collection_id: "folder-1" }] }) // activate target, scoped
+      .mockResolvedValueOnce(undefined) // deactivate others in that same scope
+      .mockResolvedValueOnce(undefined); // COMMIT
+    poolMock.query
+      .mockResolvedValueOnce({ rows: [envRow({ id: "env-2", collection_id: "folder-1" })] })
+      .mockResolvedValueOnce({ rows: [] });
+
+    await environmentsService.setActiveEnvironment("env-2", "user-1");
+
+    const deactivateCall = clientMock.query.mock.calls[2];
+    expect(deactivateCall[0]).toContain("collection_id IS");
+    expect(deactivateCall[1]).toEqual(["user-1", "env-2", "folder-1"]);
   });
 
   it("setActiveEnvironment rolls back and returns null when the environment doesn't belong to the user", async () => {

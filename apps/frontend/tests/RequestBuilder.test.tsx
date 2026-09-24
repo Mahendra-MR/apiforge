@@ -1,21 +1,35 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { RequestBuilder } from "../src/components/request-builder/RequestBuilder";
 import { useRequestStore } from "../src/store/useRequestStore";
+import { renderWithQueryClient } from "./testUtils";
+
+// Cmd/Ctrl+S opens the Save flow, which mounts SaveRequestModal — it reads
+// the collections tree to populate the folder picker, so it needs both a
+// QueryClientProvider (renderWithQueryClient) and this mock.
+const fetchCollectionsMock = vi.fn();
+vi.mock("../src/api/collections", () => ({
+  fetchCollections: (...args: unknown[]) => fetchCollectionsMock(...args),
+  createCollection: vi.fn(),
+  updateCollection: vi.fn(),
+  deleteCollection: vi.fn(),
+  saveRequestToCollection: vi.fn(),
+}));
 
 describe("RequestBuilder", () => {
   beforeEach(() => {
     useRequestStore.getState().reset();
+    fetchCollectionsMock.mockResolvedValue({ collections: [], requests: [] });
   });
 
   it("renders the URL input and method select", () => {
-    render(<RequestBuilder onSend={() => {}} isSending={false} />);
+    renderWithQueryClient(<RequestBuilder onSend={() => {}} isSending={false} />);
     expect(screen.getByPlaceholderText(/api.example.com/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/http method/i)).toBeInTheDocument();
   });
 
   it("disables Send while the URL is empty, enables it once typed", () => {
-    render(<RequestBuilder onSend={() => {}} isSending={false} />);
+    renderWithQueryClient(<RequestBuilder onSend={() => {}} isSending={false} />);
     const sendButton = screen.getByRole("button", { name: /send/i });
     expect(sendButton).toBeDisabled();
 
@@ -28,7 +42,7 @@ describe("RequestBuilder", () => {
 
   it("calls onSend when the Send button is clicked", () => {
     const onSend = vi.fn();
-    render(<RequestBuilder onSend={onSend} isSending={false} />);
+    renderWithQueryClient(<RequestBuilder onSend={onSend} isSending={false} />);
     fireEvent.change(screen.getByPlaceholderText(/api.example.com/i), {
       target: { value: "https://api.example.com/users" },
     });
@@ -37,12 +51,12 @@ describe("RequestBuilder", () => {
   });
 
   it("shows 'Sending…' and disables Send while a request is in flight", () => {
-    render(<RequestBuilder onSend={() => {}} isSending />);
+    renderWithQueryClient(<RequestBuilder onSend={() => {}} isSending />);
     expect(screen.getByRole("button", { name: /sending/i })).toBeDisabled();
   });
 
   it("switches between Params, Headers, and Body tabs", () => {
-    render(<RequestBuilder onSend={() => {}} isSending={false} />);
+    renderWithQueryClient(<RequestBuilder onSend={() => {}} isSending={false} />);
 
     expect(screen.getByPlaceholderText("Key")).toBeInTheDocument();
 
@@ -56,13 +70,32 @@ describe("RequestBuilder", () => {
 
   it("sends Cmd/Ctrl+Enter as a keyboard shortcut to send the request", () => {
     const onSend = vi.fn();
-    render(<RequestBuilder onSend={onSend} isSending={false} />);
+    renderWithQueryClient(<RequestBuilder onSend={onSend} isSending={false} />);
     fireEvent.keyDown(window, { key: "Enter", ctrlKey: true });
     expect(onSend).toHaveBeenCalledOnce();
   });
 
+  it("opens the Save flow with Cmd/Ctrl+S once a URL is entered", () => {
+    renderWithQueryClient(<RequestBuilder onSend={() => {}} isSending={false} />);
+
+    fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+    expect(screen.queryByRole("heading", { name: /save request/i })).not.toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/api.example.com/i), {
+      target: { value: "https://api.example.com/users" },
+    });
+    fireEvent.keyDown(window, { key: "s", ctrlKey: true });
+
+    expect(screen.getByRole("heading", { name: /save request/i })).toBeInTheDocument();
+  });
+
+  it("labels the cURL import button distinctly from the Collections panel's whole-collection import", () => {
+    renderWithQueryClient(<RequestBuilder onSend={() => {}} isSending={false} />);
+    expect(screen.getByRole("button", { name: /import cURL/i })).toBeInTheDocument();
+  });
+
   it("imports a curl command pasted directly into the URL bar", () => {
-    render(<RequestBuilder onSend={() => {}} isSending={false} />);
+    renderWithQueryClient(<RequestBuilder onSend={() => {}} isSending={false} />);
     const urlInput = screen.getByPlaceholderText(/api.example.com/i);
 
     fireEvent.paste(urlInput, {
@@ -80,7 +113,7 @@ describe("RequestBuilder", () => {
   });
 
   it("leaves a plain URL paste alone instead of running it through the curl parser", () => {
-    render(<RequestBuilder onSend={() => {}} isSending={false} />);
+    renderWithQueryClient(<RequestBuilder onSend={() => {}} isSending={false} />);
     const urlInput = screen.getByPlaceholderText(/api.example.com/i);
 
     fireEvent.paste(urlInput, {

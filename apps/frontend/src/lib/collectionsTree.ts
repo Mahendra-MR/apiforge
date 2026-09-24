@@ -41,3 +41,22 @@ export function flattenCollectionsForSelect(nodes: CollectionTreeNode[], depth =
     ...flattenCollectionsForSelect(node.children, depth + 1),
   ]);
 }
+
+/**
+ * Walks a folder's parentId chain up to its top-level (root) ancestor — the
+ * folder a per-folder environment is bound to. Returns null when
+ * collectionId is null (no folder — the app-wide environment applies) or
+ * doesn't match a known collection.
+ */
+export function findTopLevelAncestorId(collections: Collection[], collectionId: string | null): string | null {
+  if (collectionId === null) return null;
+  const byId = new Map(collections.map((collection) => [collection.id, collection]));
+  let current = byId.get(collectionId);
+  if (!current) return null;
+  while (current.parentId !== null) {
+    const parent = byId.get(current.parentId);
+    if (!parent) break;
+    current = parent;
+  }
+  return current.id;
+}

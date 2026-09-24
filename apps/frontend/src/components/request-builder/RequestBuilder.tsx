@@ -36,17 +36,23 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
   const setJsonBody = useRequestStore((s) => s.setJsonBody);
   const setRawBody = useRequestStore((s) => s.setRawBody);
 
-  // Cmd/Ctrl+Enter sends the request from anywhere in the builder.
+  // Cmd/Ctrl+Enter sends the request; Cmd/Ctrl+S opens the same Save flow as
+  // clicking the Save button (pre-filled for an update when this draft is
+  // already a saved request), both from anywhere in the builder.
   useEffect(() => {
     function handleKeydown(e: KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key === "Enter") {
         e.preventDefault();
         onSend();
+      } else if (e.key.toLowerCase() === "s") {
+        e.preventDefault();
+        if (draft.url.trim() !== "") setSaveModalOpen(true);
       }
     }
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
-  }, [onSend]);
+  }, [onSend, draft.url]);
 
   // Pasting a full curl command (e.g. from a terminal or a browser's "Copy as
   // cURL") straight into the URL bar imports it, matching Postman's smart
@@ -86,7 +92,7 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
           />
         </div>
         <Button variant="secondary" onClick={() => setImportModalOpen(true)}>
-          Import
+          Import cURL
         </Button>
         <Button variant="secondary" onClick={() => setSaveModalOpen(true)} disabled={draft.url.trim() === ""}>
           Save

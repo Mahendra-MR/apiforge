@@ -28,6 +28,20 @@ vi.mock("../src/api/requests", () => ({
   updateSavedRequest: (...args: unknown[]) => updateSavedRequestMock(...args),
 }));
 
+// Opening a folder's "Environment" menu entry mounts the (scoped)
+// EnvironmentManager, which reads the environments list.
+const fetchEnvironmentsMock = vi.fn();
+vi.mock("../src/api/environments", () => ({
+  fetchEnvironments: (...args: unknown[]) => fetchEnvironmentsMock(...args),
+  createEnvironment: vi.fn(),
+  renameEnvironment: vi.fn(),
+  activateEnvironment: vi.fn(),
+  deleteEnvironment: vi.fn(),
+  createVariable: vi.fn(),
+  updateVariable: vi.fn(),
+  deleteVariable: vi.fn(),
+}));
+
 function folder(overrides: Partial<Collection> = {}): Collection {
   return {
     id: "c1",
@@ -65,6 +79,7 @@ describe("CollectionsPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     useRequestStore.getState().reset();
+    fetchEnvironmentsMock.mockResolvedValue([]);
   });
 
   it("shows an empty state with no collections", async () => {
@@ -164,5 +179,32 @@ describe("CollectionsPanel", () => {
 
     expect(await screen.findByText(/share "my folder"/i)).toBeInTheDocument();
     expect(screen.getByText(/exports just this folder/i)).toBeInTheDocument();
+  });
+
+  it("opens a scoped environment manager for a top-level folder from its menu", async () => {
+    fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [] });
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+
+    await screen.findByDisplayValue("My Folder");
+    await user.click(screen.getByLabelText(/more options for my folder/i));
+    await user.click(await screen.findByRole("menuitem", { name: /environment/i }));
+
+    expect(await screen.findByRole("heading", { name: /environment — my folder/i })).toBeInTheDocument();
+  });
+
+  it("does not offer a per-folder environment on a nested subfolder", async () => {
+    const root = folder({ id: "root", name: "Root" });
+    const child = folder({ id: "child", name: "Child", parentId: "root" });
+    fetchCollectionsMock.mockResolvedValue({ collections: [root, child], requests: [] });
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+
+    await screen.findByDisplayValue("Child");
+    await user.click(screen.getByLabelText(/more options for child/i));
+
+    expect(screen.queryByRole("menuitem", { name: /environment/i })).not.toBeInTheDocument();
   });
 });

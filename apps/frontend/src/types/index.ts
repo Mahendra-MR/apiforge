@@ -134,6 +134,8 @@ export interface Environment {
   id: string;
   userId: string;
   name: string;
+  /** null = the global/app-wide environment; set = bound to that top-level folder's subtree. */
+  collectionId: string | null;
   isActive: boolean;
   variables: EnvironmentVariable[];
   createdAt: string;

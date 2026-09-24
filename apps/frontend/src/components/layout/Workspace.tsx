@@ -1,5 +1,5 @@
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
-import { useActiveEnvironmentVariables } from "../../hooks/useEnvironments";
+import { useEffectiveEnvironmentVariables } from "../../hooks/useEnvironments";
 import { useExecuteRequest } from "../../hooks/useExecuteRequest";
 import { buildExecutePayload } from "../../lib/buildPayload";
 import { HORIZONTAL_RESIZE_HANDLE } from "../../lib/resizeHandleStyles";
@@ -9,7 +9,7 @@ import { ResponseViewer } from "../response-viewer/ResponseViewer";
 
 export function Workspace() {
   const draft = useRequestStore((s) => s.draft);
-  const variables = useActiveEnvironmentVariables();
+  const variables = useEffectiveEnvironmentVariables(draft.collectionId);
   const { mutate, data, isPending, error } = useExecuteRequest();
 
   function handleSend() {

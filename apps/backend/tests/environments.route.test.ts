@@ -13,7 +13,12 @@ vi.mock("../src/services/environmentsService.js", () => ({
   deleteVariable: vi.fn(),
 }));
 
+vi.mock("../src/services/collectionsService.js", () => ({
+  getCollection: vi.fn(),
+}));
+
 const service = await import("../src/services/environmentsService.js");
+const collectionsService = await import("../src/services/collectionsService.js");
 const { createApp } = await import("../src/app.js");
 
 const app = createApp();
@@ -42,6 +47,24 @@ describe("environments routes", () => {
     const res = await request(app).post("/api/environments").send({ name: "Development" });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe("Development");
+    expect(collectionsService.getCollection).not.toHaveBeenCalled();
+  });
+
+  it("POST / with a collectionId 404s when that folder doesn't exist", async () => {
+    vi.mocked(collectionsService.getCollection).mockResolvedValue(null);
+    const res = await request(app).post("/api/environments").send({ name: "Staging", collectionId: validId });
+    expect(res.status).toBe(404);
+    expect(service.createEnvironment).not.toHaveBeenCalled();
+  });
+
+  it("POST / with a collectionId creates an environment scoped to that folder", async () => {
+    vi.mocked(collectionsService.getCollection).mockResolvedValue({ id: validId } as never);
+    vi.mocked(service.createEnvironment).mockResolvedValue({ id: "env-2", name: "Staging", collectionId: validId } as never);
+
+    const res = await request(app).post("/api/environments").send({ name: "Staging", collectionId: validId });
+
+    expect(res.status).toBe(201);
+    expect(service.createEnvironment).toHaveBeenCalledWith(expect.any(String), "Staging", validId);
   });
 
   it("GET /:id returns 404 when not found", async () => {

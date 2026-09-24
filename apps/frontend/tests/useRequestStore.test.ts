@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from "vitest";
+import { DRAFT_STORAGE_KEY } from "../src/lib/draftStorage";
 import { useRequestStore } from "../src/store/useRequestStore";
 import type { HistoryEntry } from "../src/types";
 
@@ -79,5 +80,12 @@ describe("useRequestStore", () => {
     useRequestStore.getState().setUrl("https://example.com");
     useRequestStore.getState().reset();
     expect(useRequestStore.getState().draft.url).toBe("");
+  });
+
+  it("autosaves the draft to local storage as it changes", () => {
+    useRequestStore.getState().setUrl("https://api.example.com/autosave-check");
+
+    const stored = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) ?? "null");
+    expect(stored?.url).toBe("https://api.example.com/autosave-check");
   });
 });

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { DEFAULT_USER_ID } from "../config/constants.js";
 import { HttpError } from "../middleware/errorHandler.js";
+import * as collectionsService from "../services/collectionsService.js";
 import * as environmentsService from "../services/environmentsService.js";
 
 export const environmentsRouter = Router();
@@ -15,7 +16,12 @@ const environmentIdVariableIdParamSchema = z.object({
   id: z.string().uuid(),
   variableId: z.string().uuid(),
 });
-const createEnvironmentSchema = z.object({ name: z.string().trim().min(1).max(100) });
+const createEnvironmentSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  // Present and non-null: scope the new environment to that folder's subtree.
+  // Absent or null: a global environment, same as before this field existed.
+  collectionId: z.string().uuid().nullable().optional(),
+});
 const renameEnvironmentSchema = z.object({ name: z.string().trim().min(1).max(100) });
 const createVariableSchema = z.object({
   key: z.string().trim().min(1).max(200),
@@ -38,8 +44,12 @@ environmentsRouter.get("/", async (_req, res, next) => {
 
 environmentsRouter.post("/", async (req, res, next) => {
   try {
-    const { name } = createEnvironmentSchema.parse(req.body);
-    res.status(201).json(await environmentsService.createEnvironment(userId, name));
+    const { name, collectionId } = createEnvironmentSchema.parse(req.body);
+    if (collectionId) {
+      const collection = await collectionsService.getCollection(collectionId, userId);
+      if (!collection) throw new HttpError(404, `Folder "${collectionId}" not found`);
+    }
+    res.status(201).json(await environmentsService.createEnvironment(userId, name, collectionId ?? null));
   } catch (error) {
     next(error);
   }

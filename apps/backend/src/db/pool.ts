@@ -15,8 +15,25 @@ function openDatabase(): Database.Database {
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
   db.exec(SCHEMA_SQL);
+  runMigrations(db);
   seedDefaultUser(db);
   return db;
+}
+
+/**
+ * One-off column additions for databases created before this column existed.
+ * `CREATE TABLE IF NOT EXISTS` (see schema.ts) only applies to brand-new
+ * databases — an existing apiforge.db on someone's machine already has the
+ * `environments` table without `collection_id`, and nothing else here would
+ * ever add it. SQLite has no `ADD COLUMN IF NOT EXISTS` support we can rely
+ * on across versions, so this checks `PRAGMA table_info` itself instead.
+ */
+function runMigrations(db: Database.Database): void {
+  const environmentsColumns = db.prepare("PRAGMA table_info(environments)").all() as { name: string }[];
+  const hasCollectionId = environmentsColumns.some((column) => column.name === "collection_id");
+  if (!hasCollectionId) {
+    db.exec("ALTER TABLE environments ADD COLUMN collection_id TEXT REFERENCES collections(id) ON DELETE CASCADE");
+  }
 }
 
 /**
