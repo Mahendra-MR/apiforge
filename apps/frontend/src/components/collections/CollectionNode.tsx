@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown, ChevronRight, Folder, FolderOpen, Plus, Trash2 } from "lucide-react";
 import { useCreateCollection, useDeleteCollection, useUpdateCollection } from "../../hooks/useCollections";
 import { useDeleteSavedRequest } from "../../hooks/useSavedRequests";
 import type { CollectionTreeNode } from "../../lib/collectionsTree";
@@ -38,21 +39,22 @@ export function CollectionNode({ node, depth }: CollectionNodeProps) {
   }
 
   const hasChildren = node.children.length > 0 || node.requests.length > 0;
+  const FolderIcon = expanded ? FolderOpen : Folder;
 
   return (
     <div>
       <div
-        className="group flex items-center gap-2 rounded-md py-1 pr-2 hover:bg-slate-100 dark:hover:bg-slate-800"
-        style={{ paddingLeft: `${depth * 16 + 4}px` }}
+        className="group flex items-center gap-1.5 rounded-md py-1 pr-1.5 hover:bg-slate-100 dark:hover:bg-white/5"
+        style={{ paddingLeft: `${depth * 16 + 2}px` }}
       >
         <button
           onClick={() => setExpanded((e) => !e)}
           aria-label={expanded ? `Collapse ${node.collection.name}` : `Expand ${node.collection.name}`}
           className="shrink-0 text-slate-400"
         >
-          {hasChildren ? (expanded ? "▾" : "▸") : "·"}
+          {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span className="inline-block w-[13px]" />}
         </button>
-        <span className="shrink-0">📁</span>
+        <FolderIcon size={14} className="shrink-0 text-amber-500 dark:text-amber-400" />
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -63,16 +65,16 @@ export function CollectionNode({ node, depth }: CollectionNodeProps) {
           onClick={() => { setAddingSubfolder(true); setExpanded(true); }}
           aria-label={`Add subfolder to ${node.collection.name}`}
           title="Add subfolder"
-          className="shrink-0 rounded p-1 text-slate-300 opacity-0 hover:text-emerald-600 group-hover:opacity-100 dark:text-slate-600"
+          className="shrink-0 rounded p-1 text-slate-400 opacity-60 hover:bg-slate-200 hover:text-emerald-600 hover:opacity-100 group-hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/10"
         >
-          +
+          <Plus size={13} />
         </button>
         <button
           onClick={() => deleteCollection.mutate(node.collection.id)}
           aria-label={`Delete folder ${node.collection.name}`}
-          className="shrink-0 rounded p-1 text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100 dark:text-slate-600"
+          className="shrink-0 rounded p-1 text-slate-300 opacity-0 hover:bg-slate-200 hover:text-red-500 group-hover:opacity-100 dark:text-slate-600 dark:hover:bg-white/10"
         >
-          ✕
+          <Trash2 size={13} />
         </button>
       </div>
 

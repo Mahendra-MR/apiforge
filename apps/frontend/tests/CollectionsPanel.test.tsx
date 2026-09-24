@@ -90,7 +90,7 @@ describe("CollectionsPanel", () => {
     await screen.findByText(/no collections yet/i);
 
     await user.type(screen.getByPlaceholderText(/new folder name/i), "APIs");
-    await user.click(screen.getByRole("button", { name: /\+ folder/i }));
+    await user.click(screen.getByRole("button", { name: /^new$/i }));
 
     await waitFor(() => expect(createCollectionMock).toHaveBeenCalledWith({ name: "APIs" }));
   });
@@ -119,6 +119,17 @@ describe("CollectionsPanel", () => {
     await user.click(screen.getByLabelText(/delete request get users/i));
 
     await waitFor(() => expect(deleteSavedRequestMock).toHaveBeenCalledWith("r1"));
+  });
+
+  it("opens the import collection modal", async () => {
+    fetchCollectionsMock.mockResolvedValue({ collections: [], requests: [] });
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+    await screen.findByText(/no collections yet/i);
+
+    await user.click(screen.getByTitle(/import a collection/i));
+    expect(await screen.findByText(/import collection/i)).toBeInTheDocument();
   });
 
   it("deletes a folder", async () => {

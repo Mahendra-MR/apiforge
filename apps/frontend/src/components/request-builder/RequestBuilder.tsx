@@ -73,7 +73,7 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 p-3">
+      <div className="flex items-center gap-2 border-b border-slate-100 p-3 dark:border-slate-800">
         <MethodSelect value={draft.method} onChange={setMethod} />
         <input
           value={draft.url}
@@ -81,7 +81,7 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
           onPaste={handleUrlPaste}
           placeholder="https://api.example.com/users"
           spellCheck={false}
-          className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-2 font-mono text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+          className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-3 font-mono text-sm shadow-subtle focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800/60"
         />
         <Button variant="secondary" onClick={() => setImportModalOpen(true)}>
           Import

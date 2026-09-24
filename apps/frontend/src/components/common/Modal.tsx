@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import type { ReactNode } from "react";
 
 type ModalSize = "md" | "lg";
@@ -32,26 +33,26 @@ export function Modal({ open, title, onClose, children, footer, size = "md" }: M
   if (!open) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-[2px]" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className={`flex max-h-[80vh] w-full ${SIZE_CLASSES[size]} flex-col rounded-lg bg-white shadow-xl dark:bg-surface-dark-subtle`}
+        className={`flex max-h-[80vh] w-full ${SIZE_CLASSES[size]} flex-col rounded-xl border border-slate-200/80 bg-white shadow-panel dark:border-slate-800 dark:bg-surface-dark-elevated dark:shadow-panel-dark`}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 dark:border-slate-800">
+        <div className="flex items-center justify-between border-b border-slate-100 px-4 py-3 dark:border-slate-800">
           <h2 className="text-sm font-semibold text-slate-800 dark:text-slate-100">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Close dialog"
-            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+            className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-white/10 dark:hover:text-slate-200"
           >
-            ✕
+            <X size={16} strokeWidth={2} />
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin p-4">{children}</div>
-        {footer && <div className="border-t border-slate-200 px-4 py-3 dark:border-slate-800">{footer}</div>}
+        {footer && <div className="border-t border-slate-100 px-4 py-3 dark:border-slate-800">{footer}</div>}
       </div>
     </div>,
     document.body,

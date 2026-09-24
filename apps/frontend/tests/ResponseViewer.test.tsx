@@ -67,4 +67,52 @@ describe("ResponseViewer", () => {
     fireEvent.click(screen.getByRole("tab", { name: /cookies/i }));
     expect(screen.getByText(/no cookies/i)).toBeInTheDocument();
   });
+
+  it("switches the body view to Raw and shows the unformatted body", () => {
+    render(<ResponseViewer result={makeResult()} isPending={false} error={undefined} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Raw" }));
+    expect(screen.getByTestId("codemirror-stub")).toHaveTextContent('{"ok":true}');
+  });
+
+  it("shows an HTML response in the Preview body view", () => {
+    render(
+      <ResponseViewer
+        result={makeResult({
+          headers: { "content-type": "text/html" },
+          body: "<p>hello</p>",
+          bodyJson: null,
+        })}
+        isPending={false}
+        error={undefined}
+      />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
+    expect(screen.getByTitle("Response preview")).toBeInTheDocument();
+  });
+
+  it("says there's nothing to preview for a plain JSON response", () => {
+    render(<ResponseViewer result={makeResult()} isPending={false} error={undefined} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Preview" }));
+    expect(screen.getByText(/no preview for this response/i)).toBeInTheDocument();
+  });
+
+  it("renders an array-of-objects body as a table in Visualize", () => {
+    render(
+      <ResponseViewer
+        result={makeResult({ bodyJson: [{ id: 1, name: "Alice" }, { id: 2, name: "Bob" }] })}
+        isPending={false}
+        error={undefined}
+      />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: "Visualize" }));
+    expect(screen.getByText("name")).toBeInTheDocument();
+    expect(screen.getByText("Alice")).toBeInTheDocument();
+    expect(screen.getByText("Bob")).toBeInTheDocument();
+  });
+
+  it("says Visualize doesn't apply to a non-array JSON body", () => {
+    render(<ResponseViewer result={makeResult()} isPending={false} error={undefined} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Visualize" }));
+    expect(screen.getByText(/nothing to visualize/i)).toBeInTheDocument();
+  });
 });

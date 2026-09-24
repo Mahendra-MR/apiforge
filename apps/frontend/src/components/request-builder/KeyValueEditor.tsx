@@ -1,3 +1,4 @@
+import { X } from "lucide-react";
 import type { KeyValueRow } from "../../types";
 
 interface KeyValueEditorProps {
@@ -47,7 +48,7 @@ export function KeyValueEditor({
               aria-label={`Remove row ${index + 1}`}
               className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-500 disabled:invisible dark:hover:bg-slate-800"
             >
-              ✕
+              <X size={14} />
             </button>
           </div>
         );

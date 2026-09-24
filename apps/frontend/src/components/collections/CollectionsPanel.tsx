@@ -1,14 +1,17 @@
 import { useState } from "react";
+import { FolderPlus, Upload } from "lucide-react";
 import { useCollectionsTree, useCreateCollection } from "../../hooks/useCollections";
 import { buildCollectionsTree } from "../../lib/collectionsTree";
 import { Button } from "../common/Button";
 import { EmptyState } from "../common/EmptyState";
 import { CollectionNode } from "./CollectionNode";
+import { ImportCollectionModal } from "./ImportCollectionModal";
 
 export function CollectionsPanel() {
   const { data, isLoading } = useCollectionsTree();
   const createCollection = useCreateCollection();
   const [newFolderName, setNewFolderName] = useState("");
+  const [importOpen, setImportOpen] = useState(false);
 
   const tree = buildCollectionsTree(data?.collections ?? [], data?.requests ?? []);
 
@@ -19,21 +22,26 @@ export function CollectionsPanel() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 p-2">
+      <div className="flex items-center gap-1.5 p-2">
         <input
           value={newFolderName}
           onChange={(e) => setNewFolderName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-          placeholder="New folder name"
-          className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+          placeholder="New folder name…"
+          className="min-w-0 flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
         />
         <Button
-          variant="ghost"
+          variant="secondary"
           size="sm"
           onClick={handleCreate}
           disabled={newFolderName.trim() === "" || createCollection.isPending}
+          title="Create folder"
         >
-          + Folder
+          <FolderPlus size={13} />
+          New
+        </Button>
+        <Button variant="ghost" size="sm" onClick={() => setImportOpen(true)} title="Import a collection from your computer">
+          <Upload size={13} />
         </Button>
       </div>
 
@@ -42,8 +50,9 @@ export function CollectionsPanel() {
 
         {!isLoading && tree.length === 0 && (
           <EmptyState
+            icon={<FolderPlus size={18} />}
             title="No collections yet"
-            description="Create a folder above, then use the Save button on a request to add it."
+            description="Create a folder above, import one from your computer, or use Save on a request to add it."
           />
         )}
 
@@ -51,6 +60,8 @@ export function CollectionsPanel() {
           <CollectionNode key={node.collection.id} node={node} depth={0} />
         ))}
       </div>
+
+      {importOpen && <ImportCollectionModal onClose={() => setImportOpen(false)} />}
     </div>
   );
 }

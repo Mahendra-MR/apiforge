@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X } from "lucide-react";
 import type { Environment, EnvironmentVariable } from "../../types";
 import {
   useActivateEnvironment,
@@ -92,7 +93,7 @@ function VariableRow({ environmentId, variable }: VariableRowProps) {
         aria-label="Delete variable"
         className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800"
       >
-        ✕
+        <X size={14} />
       </button>
     </div>
   );
@@ -192,7 +193,7 @@ function EnvironmentSection({ environment, expanded, onToggleExpanded }: Environ
           aria-label={`Delete environment ${environment.name}`}
           className="shrink-0 rounded p-1.5 text-slate-400 hover:bg-slate-100 hover:text-red-500 dark:hover:bg-slate-800"
         >
-          ✕
+          <X size={14} />
         </button>
       </div>
 

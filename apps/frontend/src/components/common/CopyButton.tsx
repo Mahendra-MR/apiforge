@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Check, Copy } from "lucide-react";
 import toast from "react-hot-toast";
 import { Button } from "./Button";
 
@@ -17,7 +18,8 @@ export function CopyButton({ value, label = "Copy" }: { value: string; label?: s
 
   return (
     <Button variant="ghost" size="sm" onClick={handleCopy}>
-      {copied ? "Copied!" : label}
+      {copied ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
+      {copied ? "Copied" : label}
     </Button>
   );
 }

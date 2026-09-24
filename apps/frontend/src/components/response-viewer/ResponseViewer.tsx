@@ -1,6 +1,8 @@
+import clsx from "clsx";
 import { useState } from "react";
 import { ApiClientError } from "../../api/client";
 import { formatBytes, formatDuration } from "../../lib/format";
+import { canVisualize, getContentType } from "../../lib/responseContentType";
 import type { ExecuteRequestResponse } from "../../types";
 import { Badge, statusToneForCode } from "../common/Badge";
 import { CopyButton } from "../common/CopyButton";
@@ -8,10 +10,19 @@ import { EmptyState } from "../common/EmptyState";
 import { Tabs } from "../common/Tabs";
 import { CookiesTab } from "./CookiesTab";
 import { HeadersTable } from "./HeadersTable";
+import { PreviewPane } from "./PreviewPane";
 import { ResponseCodeView } from "./ResponseCodeView";
+import { VisualizeTable } from "./VisualizeTable";
 
-type ResponseTab = "body" | "headers" | "cookies" | "raw";
-type BodyView = "pretty" | "raw";
+type ResponseTab = "body" | "headers" | "cookies";
+type BodyView = "pretty" | "raw" | "preview" | "visualize";
+
+const BODY_VIEWS: { id: BodyView; label: string }[] = [
+  { id: "pretty", label: "Pretty" },
+  { id: "raw", label: "Raw" },
+  { id: "preview", label: "Preview" },
+  { id: "visualize", label: "Visualize" },
+];
 
 interface ResponseViewerProps {
   result: ExecuteRequestResponse | undefined;
@@ -53,14 +64,13 @@ export function ResponseViewer({ result, isPending, error }: ResponseViewerProps
     );
   }
 
+  const contentType = getContentType(result.headers);
   const prettyBody = result.bodyJson !== null ? JSON.stringify(result.bodyJson, null, 2) : result.body;
-  const bodyText = bodyView === "pretty" ? prettyBody : result.body;
 
   const tabs = [
-    { id: "body", label: "Response" },
+    { id: "body", label: "Body" },
     { id: "headers", label: "Headers", badge: Object.keys(result.headers).length },
     { id: "cookies", label: "Cookies" },
-    { id: "raw", label: "Raw" },
   ];
 
   return (
@@ -86,30 +96,45 @@ export function ResponseViewer({ result, isPending, error }: ResponseViewerProps
       <div className="min-h-0 flex-1">
         {activeTab === "body" && (
           <div className="flex h-full flex-col">
-            {result.bodyJson !== null && (
-              <div className="flex justify-end gap-1 px-2 pt-1">
+            <div className="flex gap-0.5 border-b border-slate-100 px-2 py-1.5 dark:border-slate-800" role="tablist" aria-label="Body view">
+              {BODY_VIEWS.map((view) => (
                 <button
-                  onClick={() => setBodyView("pretty")}
-                  className={`rounded px-2 py-0.5 text-xs ${bodyView === "pretty" ? "bg-slate-200 dark:bg-slate-700" : "text-slate-400"}`}
+                  key={view.id}
+                  role="tab"
+                  aria-selected={bodyView === view.id}
+                  onClick={() => setBodyView(view.id)}
+                  className={clsx(
+                    "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                    bodyView === view.id
+                      ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900"
+                      : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-white/10",
+                  )}
                 >
-                  Pretty
+                  {view.label}
                 </button>
-                <button
-                  onClick={() => setBodyView("raw")}
-                  className={`rounded px-2 py-0.5 text-xs ${bodyView === "raw" ? "bg-slate-200 dark:bg-slate-700" : "text-slate-400"}`}
-                >
-                  Raw
-                </button>
-              </div>
-            )}
+              ))}
+            </div>
             <div className="min-h-0 flex-1">
-              <ResponseCodeView value={bodyText} language={result.bodyJson !== null ? "json" : "text"} />
+              {bodyView === "pretty" && (
+                <ResponseCodeView value={prettyBody} language={result.bodyJson !== null ? "json" : "text"} />
+              )}
+              {bodyView === "raw" && <ResponseCodeView value={result.body} language="text" />}
+              {bodyView === "preview" && <PreviewPane body={result.body} contentType={contentType} />}
+              {bodyView === "visualize" && (
+                canVisualize(result.bodyJson) ? (
+                  <VisualizeTable rows={result.bodyJson} />
+                ) : (
+                  <EmptyState
+                    title="Nothing to visualize"
+                    description="Visualize works best with a JSON response that's an array of objects."
+                  />
+                )
+              )}
             </div>
           </div>
         )}
         {activeTab === "headers" && <HeadersTable headers={result.headers} />}
         {activeTab === "cookies" && <CookiesTab headers={result.headers} />}
-        {activeTab === "raw" && <ResponseCodeView value={result.body} language="text" />}
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import clsx from "clsx";
+import { FolderClosed, History as HistoryIcon } from "lucide-react";
 import { CollectionsPanel } from "../collections/CollectionsPanel";
 import { HistoryPanel } from "../history/HistoryPanel";
 
@@ -14,23 +15,25 @@ export function Sidebar() {
         <button
           onClick={() => setTab("collections")}
           className={clsx(
-            "flex-1 px-3 py-2 text-sm font-medium",
+            "flex flex-1 items-center justify-center gap-1.5 border-b-2 py-2.5 text-[13px] font-medium transition-colors",
             tab === "collections"
-              ? "border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400"
-              : "text-slate-500 dark:text-slate-400",
+              ? "border-emerald-500 text-slate-900 dark:text-white"
+              : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200",
           )}
         >
+          <FolderClosed size={14} />
           Collections
         </button>
         <button
           onClick={() => setTab("history")}
           className={clsx(
-            "flex-1 px-3 py-2 text-sm font-medium",
+            "flex flex-1 items-center justify-center gap-1.5 border-b-2 py-2.5 text-[13px] font-medium transition-colors",
             tab === "history"
-              ? "border-b-2 border-emerald-500 text-emerald-600 dark:text-emerald-400"
-              : "text-slate-500 dark:text-slate-400",
+              ? "border-emerald-500 text-slate-900 dark:text-white"
+              : "border-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200",
           )}
         >
+          <HistoryIcon size={14} />
           History
         </button>
       </div>

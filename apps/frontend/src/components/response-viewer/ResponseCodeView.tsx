@@ -3,6 +3,7 @@ import { openSearchPanel, search } from "@codemirror/search";
 import CodeMirror, { EditorView } from "@uiw/react-codemirror";
 import { useRef } from "react";
 import { useThemeStore } from "../../store/useThemeStore";
+import { Search } from "lucide-react";
 import { Button } from "../common/Button";
 
 interface ResponseCodeViewProps {
@@ -28,7 +29,8 @@ export function ResponseCodeView({ value, language = "json" }: ResponseCodeViewP
           size="sm"
           onClick={() => viewRef.current && openSearchPanel(viewRef.current)}
         >
-          🔍 Search
+          <Search size={13} />
+          Search
         </Button>
       </div>
       <div className="min-h-0 flex-1 overflow-auto">

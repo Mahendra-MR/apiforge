@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { Trash2 } from "lucide-react";
 import { METHOD_TEXT_COLOR } from "../../lib/methodColors";
 import type { SavedRequest } from "../../types";
 
@@ -26,7 +27,7 @@ export function SavedRequestRow({ request, depth, onOpen, onDelete }: SavedReque
         aria-label={`Delete request ${request.name}`}
         className="shrink-0 rounded p-1 text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100 dark:text-slate-600"
       >
-        ✕
+        <Trash2 size={13} />
       </button>
     </div>
   );

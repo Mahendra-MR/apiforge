@@ -12,17 +12,19 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@tanstack/react-query": "^5.59.20",
-    "@uiw/react-codemirror": "^4.23.6",
     "@codemirror/lang-json": "^6.0.1",
     "@codemirror/search": "^6.5.6",
     "@codemirror/theme-one-dark": "^6.1.2",
+    "@fontsource/inter": "^5.3.0",
+    "@tanstack/react-query": "^5.59.20",
+    "@uiw/react-codemirror": "^4.23.6",
     "clsx": "^2.1.1",
+    "lucide-react": "^1.48.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.4.1",
-    "react-router-dom": "^6.28.0",
     "react-resizable-panels": "^2.1.7",
+    "react-router-dom": "^6.28.0",
     "zustand": "^5.0.1"
   },
   "devDependencies": {

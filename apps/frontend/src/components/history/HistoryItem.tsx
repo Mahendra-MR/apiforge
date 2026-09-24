@@ -1,4 +1,5 @@
 import clsx from "clsx";
+import { Trash2 } from "lucide-react";
 import { formatTimestamp } from "../../lib/format";
 import { METHOD_TEXT_COLOR } from "../../lib/methodColors";
 import type { HistoryEntry } from "../../types";
@@ -41,7 +42,7 @@ export function HistoryItem({ entry, onOpen, onDelete }: HistoryItemProps) {
         aria-label="Delete history entry"
         className="shrink-0 rounded p-1 text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100 dark:text-slate-600"
       >
-        ✕
+        <Trash2 size={13} />
       </button>
     </div>
   );

@@ -17,7 +17,7 @@ export function MethodSelect({ value, onChange }: { value: HttpMethod; onChange:
       value={value}
       onChange={(e) => onChange(e.target.value as HttpMethod)}
       className={clsx(
-        "rounded-md border border-slate-200 bg-white px-2 py-2 text-sm font-bold focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900",
+        "h-9 rounded-lg border border-slate-200 bg-white pl-2.5 pr-1.5 text-sm font-bold shadow-subtle focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800/60",
         METHOD_COLORS[value],
       )}
       aria-label="HTTP method"
