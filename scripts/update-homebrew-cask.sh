@@ -1,22 +1,22 @@
 #!/usr/bin/env bash
 #
-# Updates homebrew-apiforge/Casks/apiforge.rb to match an already-published
-# GitHub Release. The real macOS installers are built and published
-# automatically by .github/workflows/release.yml whenever a version tag
-# (vX.Y.Z) is pushed -- this script never builds anything itself. It just
-# downloads that release's arm64/x64 .dmg files, computes their real sha256
-# checksums, rewrites the cask file, and commits + pushes the result, so
-# `brew upgrade --cask apiforge` picks up the new version.
+# Updates Casks/apiforge.rb in the Homebrew tap repo (Mahendra-MR/homebrew-apiforge,
+# the separate repo `brew` actually reads -- NOT the homebrew-apiforge/ folder in
+# this monorepo) to match an already-published GitHub Release. The real macOS
+# installers are built and published automatically by .github/workflows/release.yml
+# whenever a version tag (vX.Y.Z) is pushed -- this script never builds anything
+# itself. It just downloads that release's arm64/x64 .dmg files, computes their
+# real sha256 checksums, rewrites the cask file in a fresh clone of the tap, and
+# commits + pushes the result there, so `brew upgrade --cask apiforge` picks up
+# the new version.
 #
 # Usage: scripts/update-homebrew-cask.sh <version>   # e.g. 0.3.0
 set -euo pipefail
 
 VERSION="${1:?Usage: scripts/update-homebrew-cask.sh <version, e.g. 0.3.0>}"
 REPO="Mahendra-MR/apiforge"
-CASK_FILE="homebrew-apiforge/Casks/apiforge.rb"
-
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-cd "$REPO_ROOT"
+TAP_REPO_URL="https://github.com/Mahendra-MR/homebrew-apiforge.git"
+CASK_FILE="Casks/apiforge.rb"
 
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
@@ -53,6 +53,10 @@ INTEL_SHA="$(sha256_of "$TMP_DIR/x64.dmg")"
 echo "arm64 sha256: $ARM_SHA"
 echo "x64   sha256: $INTEL_SHA"
 
+echo "Cloning the Homebrew tap..."
+git clone -q "$TAP_REPO_URL" "$TMP_DIR/tap"
+cd "$TMP_DIR/tap"
+
 python3 - "$CASK_FILE" "$VERSION" "$ARM_SHA" "$INTEL_SHA" <<'PYEOF'
 import re
 import sys
@@ -73,8 +77,13 @@ open(path, "w").write(content)
 print(f"{path}: version -> {version}, checksums updated")
 PYEOF
 
+if git diff --quiet -- "$CASK_FILE"; then
+  echo "Tap already points at v$VERSION with these checksums -- nothing to push."
+  exit 0
+fi
+
 git add "$CASK_FILE"
-git -c user.name="Mahendra" -c user.email="mrmahendra1206@gmail.com" commit -m "Update Homebrew cask to v$VERSION
+git -c user.name="Mahendra" -c user.email="mrmahendra1206@gmail.com" commit -m "Update apiforge cask to v$VERSION
 
 Points the arm64/x64 sha256 checksums and download URLs at the v$VERSION
 GitHub Release that CI already built and published."
