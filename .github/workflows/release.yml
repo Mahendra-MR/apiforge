@@ -3,8 +3,8 @@ name: Build and release macOS desktop app
 # Builds the Electron desktop app on a real macOS runner (electron-builder's
 # .dmg packaging needs macOS's hdiutil, which isn't available in Linux CI or
 # this project's own dev sandbox) and publishes the result as a GitHub
-# Release, so the Homebrew tap (see homebrew-apiforge/) has real assets to
-# point at.
+# Release, so the Homebrew tap (github.com/Mahendra-MR/homebrew-apiforge,
+# updated with scripts/update-homebrew-cask.sh) has real assets to point at.
 #
 # Trigger it by pushing a version tag (git tag v0.1.0 && git push origin v0.1.0),
 # or manually from the Actions tab with a version input.

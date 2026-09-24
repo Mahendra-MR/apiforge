@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 #
 # Updates Casks/apiforge.rb in the Homebrew tap repo (Mahendra-MR/homebrew-apiforge,
-# the separate repo `brew` actually reads -- NOT the homebrew-apiforge/ folder in
-# this monorepo) to match an already-published GitHub Release. The real macOS
-# installers are built and published automatically by .github/workflows/release.yml
-# whenever a version tag (vX.Y.Z) is pushed -- this script never builds anything
-# itself. It just downloads that release's arm64/x64 .dmg files, computes their
-# real sha256 checksums, rewrites the cask file in a fresh clone of the tap, and
-# commits + pushes the result there, so `brew upgrade --cask apiforge` picks up
-# the new version.
+# the separate repo `brew` reads) to match an already-published GitHub Release.
+# The real macOS installers are built and published automatically by
+# .github/workflows/release.yml whenever a version tag (vX.Y.Z) is pushed --
+# this script never builds anything itself. It just downloads that release's
+# arm64/x64 .dmg files, computes their real sha256 checksums, rewrites the cask
+# file in a fresh clone of the tap, and commits + pushes the result there, so
+# `brew upgrade --cask apiforge` picks up the new version.
 #
 # Usage: scripts/update-homebrew-cask.sh <version>   # e.g. 0.3.0
 set -euo pipefail
