@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { DRAFT_STORAGE_KEY } from "../src/lib/draftStorage";
 import { useRequestStore } from "../src/store/useRequestStore";
-import type { HistoryEntry } from "../src/types";
+import type { ExecuteRequestResponse, HistoryEntry, RequestExample, SavedRequest } from "../src/types";
 
 describe("useRequestStore", () => {
   beforeEach(() => {
@@ -88,4 +88,92 @@ describe("useRequestStore", () => {
     const stored = JSON.parse(localStorage.getItem(DRAFT_STORAGE_KEY) ?? "null");
     expect(stored?.url).toBe("https://api.example.com/autosave-check");
   });
+
+  const saved: SavedRequest = {
+    id: "r1",
+    collectionId: "c1",
+    name: "Search",
+    method: "GET",
+    url: "https://api.example.com/search",
+    queryParams: [
+      { key: "q", value: "ada", enabled: true },
+      { key: "debug", value: "1", enabled: false },
+    ],
+    pathParams: null,
+    headers: null,
+    authType: "none",
+    authConfig: null,
+    bodyType: "none",
+    body: null,
+    createdAt: "",
+    updatedAt: "",
+  };
+  const response = { status: 200, statusText: "OK", headers: {}, body: "", bodyJson: null, timeMs: 1, sizeBytes: 0 } as ExecuteRequestResponse;
+
+  it("restores a saved request's persisted params, disabled ones included", () => {
+    useRequestStore.getState().loadFromSavedRequest(saved);
+    const params = useRequestStore.getState().draft.params;
+    expect(params.map(({ key, value, enabled }) => ({ key, value, enabled }))).toEqual([
+      { key: "q", value: "ada", enabled: true },
+      { key: "debug", value: "1", enabled: false },
+      { key: "", value: "", enabled: true },
+    ]);
+  });
+
+  it("opens a history entry as an unsaved draft, so editing it can't overwrite its saved request", () => {
+    useRequestStore.getState().loadFromHistory({
+      id: "h1",
+      userId: null,
+      requestId: "r1",
+      method: "GET",
+      url: "https://api.example.com/x",
+      requestHeaders: null,
+      requestBody: null,
+      responseStatus: 200,
+      responseHeaders: null,
+      responseBody: null,
+      responseTimeMs: 1,
+      responseSizeBytes: 1,
+      error: null,
+      executedAt: "",
+    });
+    expect(useRequestStore.getState().draft.savedRequestId).toBeNull();
+  });
+
+  it("drops the previous response when a different request is opened", () => {
+    useRequestStore.getState().setResponse(response);
+    expect(useRequestStore.getState().response).toBe(response);
+    useRequestStore.getState().loadFromSavedRequest(saved);
+    expect(useRequestStore.getState().response).toBeNull();
+  });
+
+  it("opens an example on its request, and a new send's response replaces it", () => {
+    const example = { id: "e1", requestId: "r1", name: "200 OK" } as RequestExample;
+    useRequestStore.getState().openExample(saved, example);
+    expect(useRequestStore.getState().draft.savedRequestId).toBe("r1");
+    expect(useRequestStore.getState().viewingExample).toBe(example);
+
+    useRequestStore.getState().setResponse(response);
+    expect(useRequestStore.getState().viewingExample).toBeNull();
+  });
+
+  it("pasting a curl into a saved request replaces its contents in place, keeping it in its folder", () => {
+    useRequestStore.getState().loadFromSavedRequest(saved);
+    const before = useRequestStore.getState().draft;
+    useRequestStore.getState().loadFromCurl({
+      method: "POST",
+      url: "https://api.example.com/orders",
+      queryParams: [],
+      headers: [["X-A", "1"]],
+      bodyMode: "raw",
+      jsonBody: "",
+      rawBody: "hi",
+      formData: [],
+      authType: "none",
+      authConfig: null,
+    });
+    const after = useRequestStore.getState().draft;
+    expect(after).toMatchObject({ id: before.id, savedRequestId: "r1", collectionId: "c1", name: "Search", method: "POST", url: "https://api.example.com/orders" });
+  });
 });
+

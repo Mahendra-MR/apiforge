@@ -1,80 +1,107 @@
-import { useState } from "react";
-import { FolderPlus, Upload } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Download, FolderPlus, Plus, Search, X } from "lucide-react";
 import { useCollectionsTree, useCreateCollection } from "../../hooks/useCollections";
-import { buildCollectionsTree } from "../../lib/collectionsTree";
+import { buildCollectionsTree, filterCollectionsTree, groupExamplesByRequest } from "../../lib/collectionsTree";
+import { Button } from "../common/Button";
 import { EmptyState } from "../common/EmptyState";
 import { CollectionNode } from "./CollectionNode";
 import { ImportCollectionModal } from "./ImportCollectionModal";
+import { RenameInput } from "./TreeRow";
 
 export function CollectionsPanel() {
   const { data, isLoading } = useCollectionsTree();
   const createCollection = useCreateCollection();
   const [addingFolder, setAddingFolder] = useState(false);
-  const [newFolderName, setNewFolderName] = useState("");
   const [importOpen, setImportOpen] = useState(false);
+  const [filter, setFilter] = useState("");
 
-  const tree = buildCollectionsTree(data?.collections ?? [], data?.requests ?? []);
+  const tree = useMemo(() => buildCollectionsTree(data?.collections ?? [], data?.requests ?? []), [data]);
+  const visibleTree = useMemo(() => filterCollectionsTree(tree, filter), [tree, filter]);
+  const examplesByRequest = useMemo(() => groupExamplesByRequest(data?.examples ?? []), [data]);
+  const isFiltering = filter.trim() !== "";
 
-  function handleCreate() {
-    if (newFolderName.trim() === "") {
-      setAddingFolder(false);
-      return;
-    }
-    createCollection.mutate(
-      { name: newFolderName.trim() },
-      { onSuccess: () => { setNewFolderName(""); setAddingFolder(false); } },
-    );
+  function handleCreate(name: string) {
+    setAddingFolder(false);
+    createCollection.mutate({ name });
   }
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center justify-between gap-1 border-b border-slate-100 px-2 py-1.5 dark:border-slate-800">
-        <span className="px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Collections</span>
-        <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => setAddingFolder(true)}
-            title="New folder"
-            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-emerald-600 dark:hover:bg-white/5 dark:hover:text-emerald-400"
-          >
-            <FolderPlus size={15} />
-          </button>
-          <button
-            onClick={() => setImportOpen(true)}
-            title="Import a collection from your computer"
-            className="rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/5 dark:hover:text-slate-200"
-          >
-            <Upload size={15} />
-          </button>
+      <div className="flex items-center gap-1.5 px-2.5 pb-2 pt-2.5">
+        <div className="relative min-w-0 flex-1">
+          <Search size={13} className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            onKeyDown={(e) => e.key === "Escape" && setFilter("")}
+            placeholder="Filter requests"
+            aria-label="Filter collections"
+            className="h-7 w-full rounded-md border border-slate-200 bg-white pl-7 pr-6 text-[12.5px] text-slate-800 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/15 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-100"
+          />
+          {isFiltering && (
+            <button
+              onClick={() => setFilter("")}
+              aria-label="Clear filter"
+              className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+            >
+              <X size={12} />
+            </button>
+          )}
         </div>
+        <button
+          onClick={() => setAddingFolder(true)}
+          title="New collection"
+          aria-label="New collection"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+        >
+          <Plus size={15} />
+        </button>
+        <button
+          onClick={() => setImportOpen(true)}
+          title="Import a collection from your computer"
+          aria-label="Import a collection"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-slate-500 hover:bg-slate-100 hover:text-slate-800 dark:text-slate-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+        >
+          <Download size={14} />
+        </button>
       </div>
 
-      {addingFolder && (
-        <div className="px-2 pt-1.5">
-          <input
-            autoFocus
-            value={newFolderName}
-            onChange={(e) => setNewFolderName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-            onBlur={handleCreate}
-            placeholder="Folder name"
-            className="w-full rounded-md border border-dashed border-slate-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
-          />
-        </div>
-      )}
+      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin px-1.5 pb-3">
+        {addingFolder && (
+          <div className="flex h-[30px] items-center gap-2 pl-[26px] pr-2">
+            <FolderPlus size={14} strokeWidth={1.75} className="shrink-0 text-slate-400" />
+            <RenameInput initial="" placeholder="Collection name" onCommit={handleCreate} onCancel={() => setAddingFolder(false)} />
+          </div>
+        )}
 
-      <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin px-1 py-1.5">
-        {isLoading && <p className="px-2 py-4 text-xs text-slate-400">Loading collections…</p>}
+        {isLoading && <p className="px-3 py-4 text-xs text-slate-400">Loading collections…</p>}
 
         {!isLoading && tree.length === 0 && !addingFolder && (
           <EmptyState
             icon={<FolderPlus size={18} />}
             title="No collections yet"
-            description="Create a folder above, import one from your computer, or use Save on a request to add it."
+            description="Collections group your requests into folders. Create one, or import a Postman collection."
+            action={
+              <Button size="sm" variant="secondary" onClick={() => setAddingFolder(true)}>
+                <Plus size={13} />
+                New collection
+              </Button>
+            }
           />
         )}
 
-        {tree.map((node) => (
-          <CollectionNode key={node.collection.id} node={node} depth={0} />
+        {!isLoading && isFiltering && visibleTree.length === 0 && (
+          <p className="px-3 py-6 text-center text-xs text-slate-400">No requests match "{filter.trim()}".</p>
+        )}
+
+        {visibleTree.map((node) => (
+          <CollectionNode
+            key={node.collection.id}
+            node={node}
+            depth={0}
+            examplesByRequest={examplesByRequest}
+            forceExpanded={isFiltering}
+          />
         ))}
       </div>
 

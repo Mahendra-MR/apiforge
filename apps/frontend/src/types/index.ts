@@ -61,7 +61,7 @@ export function createEmptyAuthConfig(): AuthConfig {
 /** The in-progress request a user is editing in the builder. */
 export interface RequestDraft {
   id: string;
-  /** Set once this draft has been saved into a collection; used by the Save button to know whether to create vs. update. */
+  /** Set once this draft belongs to a saved request in a collection — edits to it are then autosaved there. */
   savedRequestId: string | null;
   collectionId: string | null;
   name: string;
@@ -171,15 +171,48 @@ export interface SavedRequest {
   updatedAt: string;
 }
 
+/** One query-param row as persisted on a saved request (disabled rows are kept, like Postman). */
+export interface SavedQueryParam {
+  key: string;
+  value: string;
+  enabled: boolean;
+}
+
 export interface SaveRequestInput {
   name: string;
   method: HttpMethod;
   url: string;
+  queryParams?: SavedQueryParam[];
   headers?: Record<string, string>;
   authType?: AuthType;
   authConfig?: unknown;
   bodyType?: BodyType;
   body?: unknown;
+}
+
+/** A response saved on a saved request (Postman's "examples"), viewable later without re-sending. */
+export interface RequestExample {
+  id: string;
+  requestId: string;
+  name: string;
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  body: string;
+  timeMs: number | null;
+  sizeBytes: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CreateExampleInput {
+  name: string;
+  status: number;
+  statusText: string;
+  headers: Record<string, string>;
+  body: string;
+  timeMs: number;
+  sizeBytes: number;
 }
 
 export interface OAuth2TokenResponse {

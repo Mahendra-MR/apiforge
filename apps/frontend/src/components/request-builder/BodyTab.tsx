@@ -41,7 +41,7 @@ export function BodyTab({
             className={clsx(
               "rounded px-2.5 py-1 text-xs font-medium",
               draft.bodyMode === mode.id
-                ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                ? "bg-brand-100 text-brand-700 dark:bg-brand-900/40 dark:text-brand-300"
                 : "text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800",
             )}
           >

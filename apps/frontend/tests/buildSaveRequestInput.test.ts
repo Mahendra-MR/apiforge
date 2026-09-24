@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildSaveRequestInput } from "../src/lib/buildSaveRequestInput";
+import { buildSaveRequestInput, savedRequestToInput } from "../src/lib/buildSaveRequestInput";
 import { createEmptyAuthConfig } from "../src/types";
 import type { RequestDraft } from "../src/types";
 
@@ -85,4 +85,49 @@ describe("buildSaveRequestInput", () => {
     const result = buildSaveRequestInput(draft, "Req");
     expect(result.ok && result.input.authConfig).toEqual({ token: "abc" });
   });
+
+  it("persists query-param rows, keeping disabled ones and dropping blank rows", () => {
+    const draft = makeDraft({ params: [row("page", "2"), row("debug", "1", false), row("", "")] });
+    const result = buildSaveRequestInput(draft, "Req");
+    expect(result.ok && result.input.queryParams).toEqual([
+      { key: "page", value: "2", enabled: true },
+      { key: "debug", value: "1", enabled: false },
+    ]);
+  });
 });
+
+describe("savedRequestToInput", () => {
+  it("copies every stored field under the new name", () => {
+    const input = savedRequestToInput(
+      {
+        id: "r1",
+        collectionId: "c1",
+        name: "Login",
+        method: "POST",
+        url: "{{baseUrl}}/login",
+        queryParams: [{ key: "v", value: "2", enabled: true }],
+        pathParams: null,
+        headers: { "X-A": "1" },
+        authType: "bearer",
+        authConfig: { token: "t" },
+        bodyType: "json",
+        body: { a: 1 },
+        createdAt: "",
+        updatedAt: "",
+      },
+      "Login Copy",
+    );
+    expect(input).toEqual({
+      name: "Login Copy",
+      method: "POST",
+      url: "{{baseUrl}}/login",
+      queryParams: [{ key: "v", value: "2", enabled: true }],
+      headers: { "X-A": "1" },
+      authType: "bearer",
+      authConfig: { token: "t" },
+      bodyType: "json",
+      body: { a: 1 },
+    });
+  });
+});
+

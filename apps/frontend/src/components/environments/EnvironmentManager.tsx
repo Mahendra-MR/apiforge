@@ -60,7 +60,7 @@ function VariableRow({ environmentId, variable }: VariableRowProps) {
         onChange={(e) => setKey(e.target.value)}
         onBlur={commitKey}
         placeholder="Key"
-        className="w-1/3 rounded border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+        className="w-1/3 rounded border border-slate-200 bg-white px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
       />
       <input
         type={showMasked ? "password" : "text"}
@@ -68,7 +68,7 @@ function VariableRow({ environmentId, variable }: VariableRowProps) {
         onChange={(e) => setValue(e.target.value)}
         onBlur={commitValue}
         placeholder="Value"
-        className="flex-1 rounded border border-slate-200 bg-white px-2 py-1.5 text-sm font-mono focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+        className="flex-1 rounded border border-slate-200 bg-white px-2 py-1.5 text-sm font-mono focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
       />
       {variable.isSecret && (
         <button
@@ -126,14 +126,14 @@ function NewVariableRow({ environmentId }: NewVariableRowProps) {
         onChange={(e) => setKey(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
         placeholder="New variable key"
-        className="w-1/3 rounded border border-dashed border-slate-300 bg-white px-2 py-1.5 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+        className="w-1/3 rounded border border-dashed border-slate-300 bg-white px-2 py-1.5 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
       />
       <input
         value={value}
         onChange={(e) => setValue(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && handleAdd()}
         placeholder="Value"
-        className="flex-1 rounded border border-dashed border-slate-300 bg-white px-2 py-1.5 text-sm font-mono focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+        className="flex-1 rounded border border-dashed border-slate-300 bg-white px-2 py-1.5 text-sm font-mono focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
       />
       <Button size="sm" onClick={handleAdd} disabled={key.trim() === "" || createVariable.isPending}>
         Add
@@ -174,7 +174,7 @@ function EnvironmentSection({ environment, expanded, onToggleExpanded }: Environ
           value={name}
           onChange={(e) => setName(e.target.value)}
           onBlur={commitRename}
-          className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm font-medium focus:border-emerald-500 focus:bg-white focus:outline-none dark:focus:bg-slate-900"
+          className="min-w-0 flex-1 rounded border border-transparent bg-transparent px-1 py-0.5 text-sm font-medium focus:border-brand-500 focus:bg-white focus:outline-none dark:focus:bg-slate-900"
         />
         {environment.isActive ? (
           <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">
@@ -243,7 +243,7 @@ export function EnvironmentManager({ open, onClose, scope }: EnvironmentManagerP
             onChange={(e) => setNewEnvironmentName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleCreate()}
             placeholder="New environment name"
-            className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+            className="flex-1 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
           />
           <Button
             variant="primary"

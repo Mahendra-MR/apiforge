@@ -1,7 +1,6 @@
 import { useState } from "react";
 import toast from "react-hot-toast";
 import { useCreateCollection, useCollectionsTree, useSaveRequestToCollection } from "../../hooks/useCollections";
-import { useUpdateSavedRequest } from "../../hooks/useSavedRequests";
 import { buildSaveRequestInput } from "../../lib/buildSaveRequestInput";
 import { buildCollectionsTree, flattenCollectionsForSelect } from "../../lib/collectionsTree";
 import { useRequestStore } from "../../store/useRequestStore";
@@ -15,9 +14,9 @@ interface SaveRequestModalProps {
 }
 
 /**
- * "Save" flow for the request builder. Creates a new saved request in a
- * chosen (or newly created) folder, or — when the draft already came from a
- * saved request — updates that request in place instead.
+ * Saves an unsaved draft into a chosen (or newly created) folder — opened
+ * with Cmd/Ctrl+S or from the request header. Requests that already live in
+ * a folder never need this: the builder autosaves them.
  */
 export function SaveRequestModal({ onClose }: SaveRequestModalProps) {
   const draft = useRequestStore((s) => s.draft);
@@ -37,10 +36,7 @@ export function SaveRequestModal({ onClose }: SaveRequestModalProps) {
 
   const createCollection = useCreateCollection();
   const saveToCollection = useSaveRequestToCollection();
-  const updateSavedRequest = useUpdateSavedRequest();
-
-  const isUpdating = draft.savedRequestId !== null;
-  const isPending = createCollection.isPending || saveToCollection.isPending || updateSavedRequest.isPending;
+  const isPending = createCollection.isPending || saveToCollection.isPending;
 
   async function handleSave() {
     if (name.trim() === "") return;
@@ -48,20 +44,6 @@ export function SaveRequestModal({ onClose }: SaveRequestModalProps) {
     const result = buildSaveRequestInput(draft, name.trim());
     if (!result.ok) {
       toast.error(result.error);
-      return;
-    }
-
-    if (isUpdating && draft.savedRequestId) {
-      updateSavedRequest.mutate(
-        { id: draft.savedRequestId, input: result.input },
-        {
-          onSuccess: (saved) => {
-            markSaved(saved.id, saved.collectionId);
-            toast.success("Request updated");
-            onClose();
-          },
-        },
-      );
       return;
     }
 
@@ -94,7 +76,7 @@ export function SaveRequestModal({ onClose }: SaveRequestModalProps) {
   return (
     <Modal
       open
-      title={isUpdating ? "Update Request" : "Save Request"}
+      title="Save Request"
       onClose={onClose}
       footer={
         <div className="flex justify-end gap-2">
@@ -102,7 +84,7 @@ export function SaveRequestModal({ onClose }: SaveRequestModalProps) {
             Cancel
           </Button>
           <Button variant="primary" onClick={handleSave} disabled={isPending || name.trim() === ""}>
-            {isUpdating ? "Update" : "Save"}
+            Save
           </Button>
         </div>
       }
@@ -114,41 +96,33 @@ export function SaveRequestModal({ onClose }: SaveRequestModalProps) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             autoFocus
-            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
           />
         </label>
 
-        {!isUpdating && (
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-slate-600 dark:text-slate-300">Folder</span>
-            <select
-              value={collectionId}
-              onChange={(e) => setSelectedCollectionId(e.target.value)}
-              className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
-            >
-              {options.map((option) => (
-                <option key={option.id} value={option.id}>
-                  {option.label}
-                </option>
-              ))}
-              <option value={CREATE_NEW_FOLDER}>+ Create new folder…</option>
-            </select>
-          </label>
-        )}
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium text-slate-600 dark:text-slate-300">Folder</span>
+          <select
+            value={collectionId}
+            onChange={(e) => setSelectedCollectionId(e.target.value)}
+            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+          >
+            {options.map((option) => (
+              <option key={option.id} value={option.id}>
+                {option.label}
+              </option>
+            ))}
+            <option value={CREATE_NEW_FOLDER}>+ Create new folder…</option>
+          </select>
+        </label>
 
-        {!isUpdating && collectionId === CREATE_NEW_FOLDER && (
+        {collectionId === CREATE_NEW_FOLDER && (
           <input
             value={newFolderName}
             onChange={(e) => setNewFolderName(e.target.value)}
             placeholder="New folder name"
-            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+            className="rounded-md border border-slate-200 bg-white px-3 py-2 text-sm focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
           />
-        )}
-
-        {isUpdating && (
-          <p className="text-xs text-slate-400">
-            This updates the saved request in place. Use the Collections tree to move it to a different folder.
-          </p>
         )}
       </div>
     </Modal>

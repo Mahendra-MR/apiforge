@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { buildCollectionsTree, findTopLevelAncestorId, flattenCollectionsForSelect } from "../src/lib/collectionsTree";
-import type { Collection, SavedRequest } from "../src/types";
+import {
+  buildCollectionsTree,
+  collectSubtreeIds,
+  filterCollectionsTree,
+  findTopLevelAncestorId,
+  flattenCollectionsForSelect,
+  groupExamplesByRequest,
+} from "../src/lib/collectionsTree";
+import type { Collection, RequestExample, SavedRequest } from "../src/types";
 
 function collection(overrides: Partial<Collection> = {}): Collection {
   return {
@@ -108,5 +115,59 @@ describe("findTopLevelAncestorId", () => {
 
   it("returns null for a collection id that isn't in the list", () => {
     expect(findTopLevelAncestorId([], "missing")).toBeNull();
+  });
+});
+
+describe("filterCollectionsTree", () => {
+  const api = collection({ id: "api", name: "Payments API" });
+  const auth = collection({ id: "auth", name: "Auth", parentId: "api" });
+  const misc = collection({ id: "misc", name: "Misc" });
+  const tree = buildCollectionsTree(
+    [api, auth, misc],
+    [
+      request({ id: "login", name: "Login", collectionId: "auth", url: "{{baseUrl}}/login" }),
+      request({ id: "refund", name: "Refund", collectionId: "api", url: "{{baseUrl}}/refunds" }),
+      request({ id: "ping", name: "Ping", collectionId: "misc", url: "https://status.example.com/health" }),
+    ],
+  );
+
+  it("returns the tree unchanged for a blank query", () => {
+    expect(filterCollectionsTree(tree, "  ")).toBe(tree);
+  });
+
+  it("keeps only matching requests plus the folders leading to them", () => {
+    const result = filterCollectionsTree(tree, "LOGIN");
+    expect(result).toHaveLength(1);
+    expect(result[0].collection.id).toBe("api");
+    expect(result[0].requests).toHaveLength(0);
+    expect(result[0].children[0].requests.map((r) => r.id)).toEqual(["login"]);
+  });
+
+  it("matches requests by URL as well as name", () => {
+    const result = filterCollectionsTree(tree, "health");
+    expect(result.map((n) => n.collection.id)).toEqual(["misc"]);
+  });
+
+  it("keeps a matching folder's whole subtree", () => {
+    const result = filterCollectionsTree(tree, "payments");
+    expect(result[0].requests.map((r) => r.id)).toEqual(["refund"]);
+    expect(result[0].children[0].requests.map((r) => r.id)).toEqual(["login"]);
+  });
+});
+
+describe("collectSubtreeIds / groupExamplesByRequest", () => {
+  it("lists a folder and every nested subfolder id", () => {
+    const tree = buildCollectionsTree(
+      [collection({ id: "a" }), collection({ id: "b", parentId: "a" }), collection({ id: "c", parentId: "b" })],
+      [],
+    );
+    expect(collectSubtreeIds(tree[0])).toEqual(["a", "b", "c"]);
+  });
+
+  it("groups examples under their request id", () => {
+    const example = (id: string, requestId: string) => ({ id, requestId }) as RequestExample;
+    const grouped = groupExamplesByRequest([example("e1", "r1"), example("e2", "r2"), example("e3", "r1")]);
+    expect(grouped.get("r1")?.map((e) => e.id)).toEqual(["e1", "e3"]);
+    expect(grouped.get("r2")?.map((e) => e.id)).toEqual(["e2"]);
   });
 });

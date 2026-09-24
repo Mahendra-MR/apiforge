@@ -1,148 +1,160 @@
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Folder, FolderOpen, Layers, MoreVertical, Plus, Share2, Trash2 } from "lucide-react";
-import { useCreateCollection, useDeleteCollection, useUpdateCollection } from "../../hooks/useCollections";
-import { useDeleteSavedRequest } from "../../hooks/useSavedRequests";
-import type { CollectionTreeNode } from "../../lib/collectionsTree";
+import { Folder, FolderOpen, FolderPlus, Layers, Pencil, Plus, Share2, Trash2 } from "lucide-react";
+import {
+  useCreateCollection,
+  useDeleteCollection,
+  useSaveRequestToCollection,
+  useUpdateCollection,
+} from "../../hooks/useCollections";
+import { collectSubtreeIds, type CollectionTreeNode } from "../../lib/collectionsTree";
 import { useRequestStore } from "../../store/useRequestStore";
+import type { RequestExample } from "../../types";
 import { ConfirmDialog } from "../common/ConfirmDialog";
-import { MenuItem, Popover } from "../common/Popover";
+import { MenuDivider, MenuItem } from "../common/Popover";
 import { EnvironmentManager } from "../environments/EnvironmentManager";
 import { SavedRequestRow } from "./SavedRequestRow";
 import { ShareCollectionModal } from "./ShareCollectionModal";
+import { indentFor, RenameInput, TreeRow } from "./TreeRow";
 
 interface CollectionNodeProps {
   node: CollectionTreeNode;
   depth: number;
+  examplesByRequest: Map<string, RequestExample[]>;
+  /** While the sidebar filter is active every folder is shown open, so matches are never hidden. */
+  forceExpanded?: boolean;
 }
 
-/** One folder in the Collections tree: renders its own row plus its subfolders and saved requests recursively. */
-export function CollectionNode({ node, depth }: CollectionNodeProps) {
-  const [expanded, setExpanded] = useState(true);
-  const [name, setName] = useState(node.collection.name);
+const NO_EXAMPLES: RequestExample[] = [];
+
+/** One folder in the Collections tree: its own row plus its subfolders and saved requests, recursively. */
+export function CollectionNode({ node, depth, examplesByRequest, forceExpanded = false }: CollectionNodeProps) {
+  const [expanded, setExpanded] = useState(depth === 0);
+  const [renaming, setRenaming] = useState(false);
   const [addingSubfolder, setAddingSubfolder] = useState(false);
-  const [subfolderName, setSubfolderName] = useState("");
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [sharing, setSharing] = useState(false);
   const [managingEnvironment, setManagingEnvironment] = useState(false);
   // Per-folder environments are bound to a top-level folder's subtree, so
-  // the option to manage one only appears on root folders, not every
-  // nested subfolder.
+  // only root folders offer one.
   const isTopLevel = depth === 0;
+  const isExpanded = expanded || forceExpanded;
 
   const updateCollection = useUpdateCollection();
   const deleteCollection = useDeleteCollection();
   const createCollection = useCreateCollection();
-  const deleteSavedRequest = useDeleteSavedRequest();
+  const saveToCollection = useSaveRequestToCollection();
   const loadFromSavedRequest = useRequestStore((s) => s.loadFromSavedRequest);
+  const openCollectionId = useRequestStore((s) => s.draft.collectionId);
+  const reset = useRequestStore((s) => s.reset);
 
-  function commitRename() {
-    if (name.trim() !== "" && name !== node.collection.name) {
-      updateCollection.mutate({ id: node.collection.id, input: { name: name.trim() } });
-    }
-  }
-
-  function handleAddSubfolder() {
-    if (subfolderName.trim() === "") return;
-    createCollection.mutate(
-      { name: subfolderName.trim(), parentId: node.collection.id },
-      { onSuccess: () => { setSubfolderName(""); setAddingSubfolder(false); setExpanded(true); } },
+  function handleAddRequest() {
+    setExpanded(true);
+    saveToCollection.mutate(
+      { collectionId: node.collection.id, input: { name: "New Request", method: "GET", url: "" } },
+      { onSuccess: (created) => loadFromSavedRequest(created) },
     );
   }
 
-  const hasChildren = node.children.length > 0 || node.requests.length > 0;
-  const FolderIcon = expanded ? FolderOpen : Folder;
+  function handleAddSubfolder(name: string) {
+    setAddingSubfolder(false);
+    createCollection.mutate({ name, parentId: node.collection.id }, { onSuccess: () => setExpanded(true) });
+  }
+
+  function handleDelete() {
+    // Deleting the folder that holds the open request would leave the builder autosaving into nothing.
+    if (openCollectionId && collectSubtreeIds(node).includes(openCollectionId)) reset();
+    deleteCollection.mutate(node.collection.id);
+  }
+
+  const FolderIcon = isExpanded ? FolderOpen : Folder;
+  const isEmpty = node.children.length === 0 && node.requests.length === 0;
 
   return (
     <div>
-      <div
-        className="group flex items-center gap-1.5 rounded-md py-1 pr-1.5 hover:bg-slate-100 dark:hover:bg-white/5"
-        style={{ paddingLeft: `${depth * 16 + 2}px` }}
-      >
-        <button
-          onClick={() => setExpanded((e) => !e)}
-          aria-label={expanded ? `Collapse ${node.collection.name}` : `Expand ${node.collection.name}`}
-          className="shrink-0 text-slate-400"
-        >
-          {hasChildren ? (expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />) : <span className="inline-block w-[13px]" />}
-        </button>
-        <FolderIcon size={14} className="shrink-0 text-amber-500 dark:text-amber-400" />
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onBlur={commitRename}
-          className="min-w-0 flex-1 truncate rounded border border-transparent bg-transparent px-1 py-0.5 text-sm font-medium text-slate-700 focus:border-emerald-500 focus:bg-white focus:outline-none dark:text-slate-200 dark:focus:bg-slate-900"
-        />
-        <button
-          onClick={() => { setAddingSubfolder(true); setExpanded(true); }}
-          aria-label={`Add subfolder to ${node.collection.name}`}
-          title="Add subfolder"
-          className="shrink-0 rounded p-1 text-slate-400 opacity-60 hover:bg-slate-200 hover:text-emerald-600 hover:opacity-100 group-hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/10"
-        >
-          <Plus size={13} />
-        </button>
-        <Popover
-          align="right"
-          width="min-w-[150px]"
-          trigger={(toggle) => (
-            <button
-              onClick={toggle}
-              aria-label={`More options for ${node.collection.name}`}
-              title="More options"
-              className="shrink-0 rounded p-1 text-slate-400 opacity-0 hover:bg-slate-200 group-hover:opacity-100 dark:text-slate-500 dark:hover:bg-white/10"
-            >
-              <MoreVertical size={13} />
-            </button>
-          )}
-        >
-          {(close) => (
-            <>
-              {isTopLevel && (
-                <MenuItem icon={<Layers size={13} />} onClick={() => { setManagingEnvironment(true); close(); }}>
-                  Environment
-                </MenuItem>
-              )}
-              <MenuItem icon={<Share2 size={13} />} onClick={() => { setSharing(true); close(); }}>
-                Share
+      <TreeRow
+        depth={depth}
+        label={node.collection.name}
+        labelClassName={isTopLevel ? "font-medium text-slate-800 dark:text-slate-100" : undefined}
+        leading={<FolderIcon size={14} strokeWidth={1.75} className="text-slate-400 dark:text-slate-500" />}
+        expanded={isExpanded}
+        onToggle={() => setExpanded((e) => !e)}
+        renaming={renaming}
+        onRename={(name) => {
+          setRenaming(false);
+          updateCollection.mutate({ id: node.collection.id, input: { name } });
+        }}
+        onCancelRename={() => setRenaming(false)}
+        menuLabel={`More options for ${node.collection.name}`}
+        menu={(close) => (
+          <>
+            <MenuItem icon={<Plus size={13} />} onClick={() => { handleAddRequest(); close(); }}>
+              Add request
+            </MenuItem>
+            <MenuItem icon={<FolderPlus size={13} />} onClick={() => { setAddingSubfolder(true); setExpanded(true); close(); }}>
+              Add folder
+            </MenuItem>
+            <MenuDivider />
+            {isTopLevel && (
+              <MenuItem icon={<Layers size={13} />} onClick={() => { setManagingEnvironment(true); close(); }}>
+                Environment
               </MenuItem>
-              <MenuItem icon={<Trash2 size={13} />} danger onClick={() => { setConfirmingDelete(true); close(); }}>
-                Delete
-              </MenuItem>
-            </>
-          )}
-        </Popover>
-      </div>
+            )}
+            <MenuItem icon={<Share2 size={13} />} onClick={() => { setSharing(true); close(); }}>
+              Share
+            </MenuItem>
+            <MenuItem icon={<Pencil size={13} />} onClick={() => { setRenaming(true); close(); }}>
+              Rename
+            </MenuItem>
+            <MenuDivider />
+            <MenuItem icon={<Trash2 size={13} />} danger onClick={() => { setConfirmingDelete(true); close(); }}>
+              Delete
+            </MenuItem>
+          </>
+        )}
+      />
 
-      {expanded && (
+      {isExpanded && (
         <div className="relative">
           <div
             aria-hidden
-            className="pointer-events-none absolute inset-y-0 border-l border-slate-100 dark:border-slate-800/70"
-            style={{ left: `${depth * 16 + 10}px` }}
+            className="pointer-events-none absolute inset-y-0 border-l border-slate-200/80 dark:border-white/[0.06]"
+            style={{ left: indentFor(depth) + 8 }}
           />
+          {addingSubfolder && (
+            <div className="flex h-[30px] items-center gap-2 pr-2" style={{ paddingLeft: indentFor(depth + 1) + 20 }}>
+              <Folder size={14} strokeWidth={1.75} className="shrink-0 text-slate-400" />
+              <RenameInput
+                initial=""
+                placeholder="Folder name"
+                onCommit={handleAddSubfolder}
+                onCancel={() => setAddingSubfolder(false)}
+              />
+            </div>
+          )}
           {node.children.map((child) => (
-            <CollectionNode key={child.collection.id} node={child} depth={depth + 1} />
+            <CollectionNode
+              key={child.collection.id}
+              node={child}
+              depth={depth + 1}
+              examplesByRequest={examplesByRequest}
+              forceExpanded={forceExpanded}
+            />
           ))}
           {node.requests.map((request) => (
             <SavedRequestRow
               key={request.id}
               request={request}
+              examples={examplesByRequest.get(request.id) ?? NO_EXAMPLES}
               depth={depth + 1}
-              onOpen={() => loadFromSavedRequest(request)}
-              onDelete={() => deleteSavedRequest.mutate(request.id)}
             />
           ))}
-          {addingSubfolder && (
-            <div className="flex items-center gap-2 py-1 pr-2" style={{ paddingLeft: `${(depth + 1) * 16 + 4}px` }}>
-              <input
-                autoFocus
-                value={subfolderName}
-                onChange={(e) => setSubfolderName(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddSubfolder()}
-                onBlur={() => { if (subfolderName.trim() === "") setAddingSubfolder(false); }}
-                placeholder="Folder name"
-                className="min-w-0 flex-1 rounded border border-dashed border-slate-300 bg-white px-2 py-1 text-sm focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
-              />
-            </div>
+          {isEmpty && !addingSubfolder && (
+            <p className="py-1.5 text-xs text-slate-400 dark:text-slate-500" style={{ paddingLeft: indentFor(depth + 1) + 20 }}>
+              This folder is empty.{" "}
+              <button onClick={handleAddRequest} className="font-medium text-brand-600 hover:underline dark:text-brand-400">
+                Add a request
+              </button>
+            </p>
           )}
         </div>
       )}
@@ -150,8 +162,8 @@ export function CollectionNode({ node, depth }: CollectionNodeProps) {
       <ConfirmDialog
         open={confirmingDelete}
         title="Delete folder?"
-        message={`This deletes "${node.collection.name}" and everything inside it — subfolders and saved requests included. This can't be undone.`}
-        onConfirm={() => deleteCollection.mutate(node.collection.id)}
+        message={`This deletes "${node.collection.name}" and everything inside it — subfolders, saved requests and their examples. This can't be undone.`}
+        onConfirm={handleDelete}
         onCancel={() => setConfirmingDelete(false)}
       />
       {sharing && <ShareCollectionModal node={node} onClose={() => setSharing(false)} />}

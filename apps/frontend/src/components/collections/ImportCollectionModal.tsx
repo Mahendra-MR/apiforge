@@ -86,7 +86,7 @@ export function ImportCollectionModal({ onClose }: ImportCollectionModalProps) {
         {!parsed && (
           <button
             onClick={() => fileInputRef.current?.click()}
-            className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 hover:border-emerald-400 hover:bg-emerald-50/40 dark:border-slate-700 dark:text-slate-400 dark:hover:border-emerald-500/50 dark:hover:bg-emerald-500/5"
+            className="flex flex-col items-center gap-2 rounded-lg border border-dashed border-slate-300 px-6 py-10 text-center text-sm text-slate-500 hover:border-brand-400 hover:bg-brand-50/40 dark:border-slate-700 dark:text-slate-400 dark:hover:border-brand-500/50 dark:hover:bg-brand-500/5"
           >
             <UploadCloud size={22} className="text-slate-400" />
             <span className="font-medium text-slate-600 dark:text-slate-300">Choose a collection file…</span>
@@ -96,7 +96,7 @@ export function ImportCollectionModal({ onClose }: ImportCollectionModalProps) {
 
         {parsed && (
           <div className="flex items-start gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-slate-700 dark:bg-white/5">
-            <FileJson size={18} className="mt-0.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
+            <FileJson size={18} className="mt-0.5 shrink-0 text-brand-600 dark:text-brand-400" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">{parsed.collectionName}</p>
               <p className="text-xs text-slate-400">{parsed.fileName}</p>

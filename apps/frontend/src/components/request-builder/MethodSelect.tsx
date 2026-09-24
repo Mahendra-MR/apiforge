@@ -14,8 +14,8 @@ export function MethodSelect({ value, onChange }: { value: HttpMethod; onChange:
           onClick={toggle}
           aria-label="HTTP method"
           className={clsx(
-            "flex h-9 w-[92px] shrink-0 items-center justify-between gap-1 rounded-l-lg border border-r-0 border-slate-200 bg-white pl-3 pr-2 text-sm font-bold tracking-tight dark:border-slate-700 dark:bg-slate-800/60",
-            isOpen && "z-10 ring-1 ring-emerald-500/50",
+            "flex h-9 w-[96px] shrink-0 items-center justify-between gap-1 rounded-l-lg pl-3 pr-2 text-[13px] font-bold tracking-tight hover:bg-slate-50 dark:hover:bg-white/[0.04]",
+            isOpen && "bg-slate-50 dark:bg-white/[0.04]",
             METHOD_TEXT_COLOR[value],
           )}
         >

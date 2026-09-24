@@ -19,7 +19,7 @@ export function HistoryPanel() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search history…"
-          className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
+          className="flex-1 rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs focus:border-brand-500 focus:outline-none dark:border-slate-700 dark:bg-slate-900"
         />
         {entries && entries.length > 0 && (
           <Button

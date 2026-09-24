@@ -34,7 +34,7 @@ export function ShareCollectionModal({ node, onClose }: ShareCollectionModalProp
       <div className="space-y-3">
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Exports just this folder — not your whole workspace — as a Postman collection file. Send it to anyone; they
-          can open it in Postman, or import it back into APIForge AI with the Import button in the Collections
+          can open it in Postman, or import it back into APIForge with the Import button in the Collections
           panel.
         </p>
         <p className="text-xs text-slate-400 dark:text-slate-500">

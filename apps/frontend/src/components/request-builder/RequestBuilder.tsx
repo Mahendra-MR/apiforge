@@ -1,15 +1,18 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import clsx from "clsx";
 import toast from "react-hot-toast";
-import { SaveRequestModal } from "../collections/SaveRequestModal";
-import { Tabs } from "../common/Tabs";
-import { Button } from "../common/Button";
-import { useRequestStore } from "../../store/useRequestStore";
+import { Code2 } from "lucide-react";
+import { useAutosaveRequest } from "../../hooks/useAutosaveRequest";
 import { parseCurlCommand } from "../../lib/parseCurl";
+import { useRequestStore } from "../../store/useRequestStore";
+import { SaveRequestModal } from "../collections/SaveRequestModal";
+import { Button } from "../common/Button";
+import { Tabs } from "../common/Tabs";
 import { AuthTab } from "./AuthTab";
-import { ImportCurlModal } from "./ImportCurlModal";
-import { MethodSelect } from "./MethodSelect";
-import { KeyValueEditor } from "./KeyValueEditor";
 import { BodyTab } from "./BodyTab";
+import { KeyValueEditor } from "./KeyValueEditor";
+import { MethodSelect } from "./MethodSelect";
+import { RequestHeader } from "./RequestHeader";
 
 type BuilderTab = "params" | "headers" | "auth" | "body";
 
@@ -20,12 +23,14 @@ function countActive(rows: { key: string; enabled: boolean }[]): number {
 interface RequestBuilderProps {
   onSend: () => void;
   isSending: boolean;
+  codeOpen?: boolean;
+  onToggleCode?: () => void;
 }
 
-export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
+export function RequestBuilder({ onSend, isSending, codeOpen = false, onToggleCode }: RequestBuilderProps) {
   const [activeTab, setActiveTab] = useState<BuilderTab>("params");
   const [saveModalOpen, setSaveModalOpen] = useState(false);
-  const [importModalOpen, setImportModalOpen] = useState(false);
+  const urlInputRef = useRef<HTMLInputElement>(null);
   const draft = useRequestStore((s) => s.draft);
   const setMethod = useRequestStore((s) => s.setMethod);
   const setUrl = useRequestStore((s) => s.setUrl);
@@ -35,10 +40,12 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
   const setBodyMode = useRequestStore((s) => s.setBodyMode);
   const setJsonBody = useRequestStore((s) => s.setJsonBody);
   const setRawBody = useRequestStore((s) => s.setRawBody);
+  const autosaveStatus = useAutosaveRequest();
+  const isSaved = draft.savedRequestId !== null;
+  const canSend = draft.url.trim() !== "" && !isSending;
 
-  // Cmd/Ctrl+Enter sends the request; Cmd/Ctrl+S opens the same Save flow as
-  // clicking the Save button (pre-filled for an update when this draft is
-  // already a saved request), both from anywhere in the builder.
+  // Requests in a collection save themselves; Cmd/Ctrl+S only matters for an
+  // unsaved draft, where it opens the "save into a collection" dialog.
   useEffect(() => {
     function handleKeydown(e: KeyboardEvent) {
       if (!(e.metaKey || e.ctrlKey)) return;
@@ -47,16 +54,21 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
         onSend();
       } else if (e.key.toLowerCase() === "s") {
         e.preventDefault();
-        if (draft.url.trim() !== "") setSaveModalOpen(true);
+        if (!isSaved) setSaveModalOpen(true);
       }
     }
     window.addEventListener("keydown", handleKeydown);
     return () => window.removeEventListener("keydown", handleKeydown);
-  }, [onSend, draft.url]);
+  }, [onSend, isSaved]);
 
-  // Pasting a full curl command (e.g. from a terminal or a browser's "Copy as
-  // cURL") straight into the URL bar imports it, matching Postman's smart
-  // paste — the same parser the Import modal uses, just triggered inline.
+  // A freshly added (blank) request lands with the cursor in the URL bar, ready to type or paste a curl.
+  useEffect(() => {
+    if (draft.url === "") urlInputRef.current?.focus();
+    // Only when a different request is opened, not on every keystroke.
+  }, [draft.id]);
+
+  // Pasting a full curl command (from a terminal, a browser's "Copy as cURL",
+  // or this app's own code snippet) into the URL bar imports it, like Postman.
   function handleUrlPaste(e: React.ClipboardEvent<HTMLInputElement>) {
     const pasted = e.clipboardData.getData("text");
     if (!/^\s*curl\s/i.test(pasted)) return; // not a curl command — let the normal paste happen
@@ -78,36 +90,46 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
   ];
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2 border-b border-slate-100 p-3 dark:border-slate-800">
-        <div className="flex min-w-0 flex-1 shadow-subtle">
+    <div className="flex h-full flex-col bg-white dark:bg-surface-dark">
+      <RequestHeader status={autosaveStatus} onSaveDraft={() => setSaveModalOpen(true)} />
+
+      <div className="flex items-center gap-2 px-4 pb-3">
+        <div className="flex min-w-0 flex-1 rounded-lg border border-slate-200 bg-white shadow-subtle focus-within:border-brand-500 focus-within:ring-2 focus-within:ring-brand-500/15 dark:border-white/10 dark:bg-white/[0.03]">
           <MethodSelect value={draft.method} onChange={setMethod} />
+          <div className="my-2 w-px bg-slate-200 dark:bg-white/10" />
           <input
+            ref={urlInputRef}
             value={draft.url}
             onChange={(e) => setUrl(e.target.value)}
             onPaste={handleUrlPaste}
-            placeholder="https://api.example.com/users"
+            placeholder="Enter URL or paste a cURL command — e.g. https://api.example.com/users"
+            aria-label="Request URL"
             spellCheck={false}
-            className="h-9 min-w-0 flex-1 rounded-r-lg border border-slate-200 bg-white px-3 font-mono text-sm focus:z-10 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:border-slate-700 dark:bg-slate-800/60"
+            className="h-9 min-w-0 flex-1 rounded-r-lg bg-transparent px-3 font-mono text-[13px] text-slate-800 placeholder:font-sans placeholder:text-slate-400 focus:outline-none dark:text-slate-100"
           />
         </div>
-        <Button variant="secondary" onClick={() => setImportModalOpen(true)}>
-          Import cURL
-        </Button>
-        <Button variant="secondary" onClick={() => setSaveModalOpen(true)} disabled={draft.url.trim() === ""}>
-          Save
-        </Button>
-        <Button variant="primary" onClick={onSend} disabled={isSending || draft.url.trim() === ""}>
+        <Button variant="primary" onClick={onSend} disabled={!canSend} className="w-[88px]">
           {isSending ? "Sending…" : "Send"}
         </Button>
+        {onToggleCode && (
+          <button
+            onClick={onToggleCode}
+            aria-label="Code snippet"
+            aria-pressed={codeOpen}
+            title="View as cURL"
+            className={clsx(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border transition-colors",
+              codeOpen
+                ? "border-brand-200 bg-brand-50 text-brand-700 dark:border-brand-500/30 dark:bg-brand-500/15 dark:text-brand-300"
+                : "border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-800 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-400 dark:hover:text-white",
+            )}
+          >
+            <Code2 size={16} />
+          </button>
+        )}
       </div>
 
-      <Tabs
-        tabs={tabs}
-        activeId={activeTab}
-        onChange={(id) => setActiveTab(id as BuilderTab)}
-        aria-label="Request sections"
-      />
+      <Tabs tabs={tabs} activeId={activeTab} onChange={(id) => setActiveTab(id as BuilderTab)} aria-label="Request sections" />
 
       <div className="min-h-0 flex-1 overflow-y-auto scrollbar-thin">
         {activeTab === "params" && (
@@ -138,7 +160,6 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
       </div>
 
       {saveModalOpen && <SaveRequestModal onClose={() => setSaveModalOpen(false)} />}
-      {importModalOpen && <ImportCurlModal onClose={() => setImportModalOpen(false)} />}
     </div>
   );
 }

@@ -16,10 +16,10 @@ export function TopBar() {
   const activeId = globalEnvironments?.find((environment) => environment.isActive)?.id ?? "";
 
   return (
-    <header className="flex h-14 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 dark:border-slate-800 dark:bg-surface-dark-subtle">
+    <header className="flex h-12 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 dark:border-white/[0.06] dark:bg-surface-dark-subtle">
       <div className="flex items-center gap-2">
         <img src={logo} alt="" className="h-7 w-7 object-contain" />
-        <span className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white">APIForge AI</span>
+        <span className="text-[15px] font-semibold tracking-tight text-slate-900 dark:text-white">APIForge</span>
       </div>
 
       <div className="h-5 w-px bg-slate-200 dark:bg-slate-700" />

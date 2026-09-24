@@ -26,10 +26,10 @@ export function EnvironmentSelect({ environments, activeId, onSelect }: Environm
           className={clsx(
             "flex h-9 items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 text-sm shadow-subtle transition-colors dark:border-slate-700 dark:bg-slate-800/60",
             active ? "text-slate-700 dark:text-slate-200" : "text-slate-400 dark:text-slate-500",
-            isOpen && "border-emerald-500 ring-1 ring-emerald-500/50",
+            isOpen && "border-brand-500 ring-1 ring-brand-500/50",
           )}
         >
-          <Layers size={13} className={active ? "text-emerald-500" : "text-slate-300 dark:text-slate-600"} />
+          <Layers size={13} className={active ? "text-brand-500" : "text-slate-300 dark:text-slate-600"} />
           <span className="max-w-[140px] truncate">{active?.name ?? "No Environment"}</span>
           <ChevronDown size={13} className="text-slate-400" />
         </button>
@@ -43,7 +43,7 @@ export function EnvironmentSelect({ environments, activeId, onSelect }: Environm
           {environments?.map((environment) => (
             <MenuItem
               key={environment.id}
-              icon={environment.id === activeId ? <Check size={13} className="text-emerald-500" /> : <span className="inline-block w-[13px]" />}
+              icon={environment.id === activeId ? <Check size={13} className="text-brand-500" /> : <span className="inline-block w-[13px]" />}
               onClick={() => { onSelect(environment.id); close(); }}
             >
               {environment.name}

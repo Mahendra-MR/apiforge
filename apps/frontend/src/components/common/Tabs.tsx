@@ -41,7 +41,7 @@ export function Tabs({ tabs, activeId, onChange, "aria-label": ariaLabel }: Tabs
             </span>
           )}
           {tab.id === activeId && (
-            <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-emerald-500" />
+            <span className="absolute inset-x-2 -bottom-px h-0.5 rounded-full bg-brand-500" />
           )}
         </button>
       ))}

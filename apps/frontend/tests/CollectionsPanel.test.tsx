@@ -1,9 +1,9 @@
-import { screen, waitFor } from "@testing-library/react";
+import { act, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CollectionsPanel } from "../src/components/collections/CollectionsPanel";
 import { useRequestStore } from "../src/store/useRequestStore";
-import type { Collection, SavedRequest } from "../src/types";
+import type { Collection, ExecuteRequestResponse, RequestExample, SavedRequest } from "../src/types";
 import { renderWithQueryClient } from "./testUtils";
 
 const fetchCollectionsMock = vi.fn();
@@ -26,6 +26,15 @@ const updateSavedRequestMock = vi.fn();
 vi.mock("../src/api/requests", () => ({
   deleteSavedRequest: (...args: unknown[]) => deleteSavedRequestMock(...args),
   updateSavedRequest: (...args: unknown[]) => updateSavedRequestMock(...args),
+}));
+
+const createExampleMock = vi.fn();
+const renameExampleMock = vi.fn();
+const deleteExampleMock = vi.fn();
+vi.mock("../src/api/examples", () => ({
+  createExample: (...args: unknown[]) => createExampleMock(...args),
+  renameExample: (...args: unknown[]) => renameExampleMock(...args),
+  deleteExample: (...args: unknown[]) => deleteExampleMock(...args),
 }));
 
 // Opening a folder's "Environment" menu entry mounts the (scoped)
@@ -75,6 +84,37 @@ function savedRequest(overrides: Partial<SavedRequest> = {}): SavedRequest {
   };
 }
 
+function example(overrides: Partial<RequestExample> = {}): RequestExample {
+  return {
+    id: "e1",
+    requestId: "r1",
+    name: "200 OK",
+    status: 200,
+    statusText: "OK",
+    headers: { "content-type": "application/json" },
+    body: '{"users":[]}',
+    timeMs: 12,
+    sizeBytes: 12,
+    createdAt: "2026-01-01T00:00:00.000Z",
+    updatedAt: "2026-01-01T00:00:00.000Z",
+    ...overrides,
+  };
+}
+
+const liveResponse: ExecuteRequestResponse = {
+  status: 201,
+  statusText: "Created",
+  headers: { "content-type": "application/json" },
+  body: '{"id":1}',
+  bodyJson: { id: 1 },
+  timeMs: 30,
+  sizeBytes: 8,
+};
+
+async function openMenu(user: ReturnType<typeof userEvent.setup>, label: RegExp) {
+  await user.click(await screen.findByLabelText(label));
+}
+
 describe("CollectionsPanel", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -88,15 +128,16 @@ describe("CollectionsPanel", () => {
     expect(await screen.findByText(/no collections yet/i)).toBeInTheDocument();
   });
 
-  it("lists a folder and its saved request", async () => {
+  it("lists a folder and its saved request as plain rows, not editable inputs", async () => {
     fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [savedRequest()] });
     renderWithQueryClient(<CollectionsPanel />);
 
-    expect(await screen.findByDisplayValue("My Folder")).toBeInTheDocument();
+    expect(await screen.findByText("My Folder")).toBeInTheDocument();
     expect(screen.getByText("Get users")).toBeInTheDocument();
+    expect(screen.queryByDisplayValue("My Folder")).not.toBeInTheDocument();
   });
 
-  it("creates a new root folder", async () => {
+  it("creates a new top-level collection", async () => {
     fetchCollectionsMock.mockResolvedValue({ collections: [], requests: [] });
     createCollectionMock.mockResolvedValue(folder({ id: "new" }));
 
@@ -104,8 +145,8 @@ describe("CollectionsPanel", () => {
     renderWithQueryClient(<CollectionsPanel />);
     await screen.findByText(/no collections yet/i);
 
-    await user.click(screen.getByTitle(/^new folder$/i));
-    await user.type(screen.getByPlaceholderText(/^folder name$/i), "APIs{Enter}");
+    await user.click(screen.getByTitle(/^new collection$/i));
+    await user.type(screen.getByPlaceholderText(/^collection name$/i), "APIs{Enter}");
 
     await waitFor(() => expect(createCollectionMock).toHaveBeenCalledWith({ name: "APIs" }));
   });
@@ -123,20 +164,169 @@ describe("CollectionsPanel", () => {
     expect(useRequestStore.getState().draft.collectionId).toBe("c1");
   });
 
-  it("deletes a saved request after confirming", async () => {
+  it("adds a blank request to a folder from its menu and opens it", async () => {
+    fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [] });
+    saveRequestToCollectionMock.mockResolvedValue(savedRequest({ id: "new-req", name: "New Request", url: "" }));
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+
+    await openMenu(user, /more options for my folder/i);
+    await user.click(await screen.findByRole("menuitem", { name: /add request/i }));
+
+    await waitFor(() =>
+      expect(saveRequestToCollectionMock).toHaveBeenCalledWith("c1", { name: "New Request", method: "GET", url: "" }),
+    );
+    await waitFor(() => expect(useRequestStore.getState().draft.savedRequestId).toBe("new-req"));
+  });
+
+  it("offers an inline 'Add a request' link in an empty folder", async () => {
+    fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [] });
+    saveRequestToCollectionMock.mockResolvedValue(savedRequest({ id: "new-req" }));
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+
+    await user.click(await screen.findByRole("button", { name: /add a request/i }));
+    await waitFor(() => expect(saveRequestToCollectionMock).toHaveBeenCalledWith("c1", expect.objectContaining({ url: "" })));
+  });
+
+  it("renames a folder from its menu", async () => {
+    fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [] });
+    updateCollectionMock.mockResolvedValue(folder({ name: "Payments" }));
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+
+    await openMenu(user, /more options for my folder/i);
+    await user.click(await screen.findByRole("menuitem", { name: /rename/i }));
+    const input = screen.getByDisplayValue("My Folder");
+    await user.clear(input);
+    await user.type(input, "Payments{Enter}");
+
+    await waitFor(() => expect(updateCollectionMock).toHaveBeenCalledWith("c1", { name: "Payments" }));
+  });
+
+  it("renames a request from its menu and keeps the open builder in step", async () => {
+    fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [savedRequest()] });
+    updateSavedRequestMock.mockResolvedValue(savedRequest({ name: "List users" }));
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+    await user.click(await screen.findByText("Get users"));
+
+    await openMenu(user, /more actions for request get users/i);
+    await user.click(await screen.findByRole("menuitem", { name: /rename/i }));
+    const input = screen.getByDisplayValue("Get users");
+    await user.clear(input);
+    await user.type(input, "List users{Enter}");
+
+    await waitFor(() => expect(updateSavedRequestMock).toHaveBeenCalledWith("r1", { name: "List users" }));
+    expect(useRequestStore.getState().draft.name).toBe("List users");
+  });
+
+  it("duplicates a request into the same folder and opens the copy", async () => {
+    fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [savedRequest()] });
+    saveRequestToCollectionMock.mockResolvedValue(savedRequest({ id: "copy", name: "Get users Copy" }));
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+
+    await openMenu(user, /more actions for request get users/i);
+    await user.click(await screen.findByRole("menuitem", { name: /duplicate/i }));
+
+    await waitFor(() =>
+      expect(saveRequestToCollectionMock).toHaveBeenCalledWith(
+        "c1",
+        expect.objectContaining({ name: "Get users Copy", url: "https://api.example.com/users", headers: { Accept: "application/json" } }),
+      ),
+    );
+    await waitFor(() => expect(useRequestStore.getState().draft.savedRequestId).toBe("copy"));
+  });
+
+  it("deletes a saved request after confirming, and clears it from the builder if it was open", async () => {
     fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [savedRequest()] });
     deleteSavedRequestMock.mockResolvedValue(undefined);
 
     const user = userEvent.setup();
     renderWithQueryClient(<CollectionsPanel />);
+    await user.click(await screen.findByText("Get users"));
 
-    await screen.findByText("Get users");
-    await user.click(screen.getByLabelText(/delete request get users/i));
+    await openMenu(user, /more actions for request get users/i);
+    await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
     expect(deleteSavedRequestMock).not.toHaveBeenCalled();
 
     await user.click(await screen.findByRole("button", { name: /^delete$/i }));
 
     await waitFor(() => expect(deleteSavedRequestMock).toHaveBeenCalledWith("r1"));
+    expect(useRequestStore.getState().draft.savedRequestId).toBeNull();
+  });
+
+  it("only offers 'Add example' once the open request has a response, then saves it", async () => {
+    fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [savedRequest()] });
+    createExampleMock.mockResolvedValue(example({ name: "201 Created" }));
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+    await user.click(await screen.findByText("Get users"));
+
+    await openMenu(user, /more actions for request get users/i);
+    expect(await screen.findByRole("menuitem", { name: /add example/i })).toBeDisabled();
+    await user.keyboard("{Escape}");
+
+    act(() => useRequestStore.getState().setResponse(liveResponse));
+    await openMenu(user, /more actions for request get users/i);
+    await user.click(await screen.findByRole("menuitem", { name: /add example/i }));
+
+    await waitFor(() =>
+      expect(createExampleMock).toHaveBeenCalledWith("r1", {
+        name: "201 Created",
+        status: 201,
+        statusText: "Created",
+        headers: { "content-type": "application/json" },
+        body: '{"id":1}',
+        timeMs: 30,
+        sizeBytes: 8,
+      }),
+    );
+  });
+
+  it("lists a request's examples under it and opens one without re-sending", async () => {
+    fetchCollectionsMock.mockResolvedValue({
+      collections: [folder()],
+      requests: [savedRequest()],
+      examples: [example()],
+    });
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+
+    await user.click(await screen.findByLabelText(/expand get users/i));
+    await user.click(await screen.findByText("200 OK"));
+
+    const state = useRequestStore.getState();
+    expect(state.draft.savedRequestId).toBe("r1");
+    expect(state.viewingExample?.id).toBe("e1");
+  });
+
+  it("filters the tree by request name or URL", async () => {
+    fetchCollectionsMock.mockResolvedValue({
+      collections: [folder(), folder({ id: "c2", name: "Other" })],
+      requests: [savedRequest(), savedRequest({ id: "r2", collectionId: "c2", name: "Ping", url: "https://status.test/health" })],
+    });
+
+    const user = userEvent.setup();
+    renderWithQueryClient(<CollectionsPanel />);
+    await screen.findByText("Get users");
+
+    await user.type(screen.getByLabelText(/filter collections/i), "health");
+
+    expect(screen.getByText("Ping")).toBeInTheDocument();
+    expect(screen.queryByText("Get users")).not.toBeInTheDocument();
+    expect(screen.queryByText("My Folder")).not.toBeInTheDocument();
+
+    await user.type(screen.getByLabelText(/filter collections/i), "zzz");
+    expect(screen.getByText(/no requests match/i)).toBeInTheDocument();
   });
 
   it("opens the import collection modal", async () => {
@@ -157,8 +347,7 @@ describe("CollectionsPanel", () => {
     const user = userEvent.setup();
     renderWithQueryClient(<CollectionsPanel />);
 
-    await screen.findByDisplayValue("My Folder");
-    await user.click(screen.getByLabelText(/more options for my folder/i));
+    await openMenu(user, /more options for my folder/i);
     await user.click(await screen.findByRole("menuitem", { name: /delete/i }));
     expect(deleteCollectionMock).not.toHaveBeenCalled();
 
@@ -173,8 +362,7 @@ describe("CollectionsPanel", () => {
     const user = userEvent.setup();
     renderWithQueryClient(<CollectionsPanel />);
 
-    await screen.findByDisplayValue("My Folder");
-    await user.click(screen.getByLabelText(/more options for my folder/i));
+    await openMenu(user, /more options for my folder/i);
     await user.click(await screen.findByRole("menuitem", { name: /share/i }));
 
     expect(await screen.findByText(/share "my folder"/i)).toBeInTheDocument();
@@ -187,8 +375,7 @@ describe("CollectionsPanel", () => {
     const user = userEvent.setup();
     renderWithQueryClient(<CollectionsPanel />);
 
-    await screen.findByDisplayValue("My Folder");
-    await user.click(screen.getByLabelText(/more options for my folder/i));
+    await openMenu(user, /more options for my folder/i);
     await user.click(await screen.findByRole("menuitem", { name: /environment/i }));
 
     expect(await screen.findByRole("heading", { name: /environment — my folder/i })).toBeInTheDocument();
@@ -202,9 +389,9 @@ describe("CollectionsPanel", () => {
     const user = userEvent.setup();
     renderWithQueryClient(<CollectionsPanel />);
 
-    await screen.findByDisplayValue("Child");
-    await user.click(screen.getByLabelText(/more options for child/i));
+    await openMenu(user, /more options for child/i);
 
+    expect(await screen.findByRole("menuitem", { name: /add request/i })).toBeInTheDocument();
     expect(screen.queryByRole("menuitem", { name: /environment/i })).not.toBeInTheDocument();
   });
 });

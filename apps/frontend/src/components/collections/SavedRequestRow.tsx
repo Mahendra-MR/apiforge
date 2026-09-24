@@ -1,58 +1,131 @@
 import { useState } from "react";
 import clsx from "clsx";
-import { Trash2 } from "lucide-react";
+import toast from "react-hot-toast";
+import { BookmarkPlus, Copy, Pencil, Trash2 } from "lucide-react";
+import { useSaveRequestToCollection } from "../../hooks/useCollections";
+import { useCreateExample } from "../../hooks/useExamples";
+import { useDeleteSavedRequest, useUpdateSavedRequest } from "../../hooks/useSavedRequests";
+import { savedRequestToInput } from "../../lib/buildSaveRequestInput";
+import { exampleInputFromResponse } from "../../lib/examples";
 import { METHOD_TEXT_COLOR } from "../../lib/methodColors";
 import { useRequestStore } from "../../store/useRequestStore";
+import type { RequestExample, SavedRequest } from "../../types";
 import { ConfirmDialog } from "../common/ConfirmDialog";
-import type { SavedRequest } from "../../types";
+import { MenuDivider, MenuItem } from "../common/Popover";
+import { ExampleRow } from "./ExampleRow";
+import { TreeRow } from "./TreeRow";
 
 interface SavedRequestRowProps {
   request: SavedRequest;
+  examples: RequestExample[];
   depth: number;
-  onOpen: () => void;
-  onDelete: () => void;
 }
 
-export function SavedRequestRow({ request, depth, onOpen, onDelete }: SavedRequestRowProps) {
-  const isActive = useRequestStore((s) => s.draft.savedRequestId === request.id);
+/** Short labels so long methods don't push the request name around, matching Postman's tree. */
+const METHOD_LABEL: Record<string, string> = { DELETE: "DEL", OPTIONS: "OPT", PATCH: "PATCH" };
+
+export function SavedRequestRow({ request, examples, depth }: SavedRequestRowProps) {
+  const isOpen = useRequestStore((s) => s.draft.savedRequestId === request.id);
+  const isActive = useRequestStore((s) => s.draft.savedRequestId === request.id && s.viewingExample === null);
+  const liveResponse = useRequestStore((s) => (s.draft.savedRequestId === request.id ? s.response : null));
+  const loadFromSavedRequest = useRequestStore((s) => s.loadFromSavedRequest);
+  const setName = useRequestStore((s) => s.setName);
+  const reset = useRequestStore((s) => s.reset);
+
+  const updateSavedRequest = useUpdateSavedRequest();
+  const deleteSavedRequest = useDeleteSavedRequest();
+  const saveToCollection = useSaveRequestToCollection();
+  const createExample = useCreateExample();
+
+  const [expanded, setExpanded] = useState(false);
+  const [renaming, setRenaming] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
-  return (
-    <div
-      className={clsx(
-        "group flex items-center gap-2 rounded-md py-1 pr-2",
-        isActive ? "bg-emerald-50 dark:bg-emerald-500/10" : "hover:bg-slate-100 dark:hover:bg-slate-800",
-      )}
-      style={{ paddingLeft: `${depth * 16 + 24}px` }}
-    >
-      <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2 text-left">
-        <span className={clsx("w-12 shrink-0 text-xs font-bold", METHOD_TEXT_COLOR[request.method] ?? "text-slate-500")}>
-          {request.method}
-        </span>
-        <span
-          className={clsx(
-            "truncate text-sm",
-            isActive ? "font-medium text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-200",
-          )}
-        >
-          {request.name}
-        </span>
-      </button>
-      <button
-        onClick={() => setConfirmingDelete(true)}
-        aria-label={`Delete request ${request.name}`}
-        className="shrink-0 rounded p-1 text-slate-300 opacity-0 hover:text-red-500 group-hover:opacity-100 dark:text-slate-600"
-      >
-        <Trash2 size={13} />
-      </button>
+  function handleRename(name: string) {
+    setRenaming(false);
+    updateSavedRequest.mutate({ id: request.id, input: { name } });
+    // Keep the open builder in step, or its next autosave would write the old name back.
+    if (isOpen) setName(name);
+  }
 
+  function handleDuplicate() {
+    if (!request.collectionId) return;
+    saveToCollection.mutate(
+      { collectionId: request.collectionId, input: savedRequestToInput(request, `${request.name} Copy`) },
+      { onSuccess: (copy) => { loadFromSavedRequest(copy); toast.success("Request duplicated"); } },
+    );
+  }
+
+  function handleAddExample() {
+    if (!liveResponse) return;
+    createExample.mutate(
+      { requestId: request.id, input: exampleInputFromResponse(liveResponse) },
+      { onSuccess: () => { setExpanded(true); toast.success("Response saved as an example"); } },
+    );
+  }
+
+  function handleDelete() {
+    deleteSavedRequest.mutate(request.id);
+    if (isOpen) reset();
+  }
+
+  return (
+    <>
+      <TreeRow
+        depth={depth}
+        label={request.name}
+        leading={
+          <span
+            className={clsx(
+              "w-[34px] text-right font-mono text-[10px] font-bold tracking-tight",
+              METHOD_TEXT_COLOR[request.method] ?? "text-slate-500",
+            )}
+          >
+            {METHOD_LABEL[request.method] ?? request.method}
+          </span>
+        }
+        expanded={examples.length > 0 ? expanded : undefined}
+        onToggle={examples.length > 0 ? () => setExpanded((e) => !e) : undefined}
+        onOpen={() => loadFromSavedRequest(request)}
+        active={isActive}
+        renaming={renaming}
+        onRename={handleRename}
+        onCancelRename={() => setRenaming(false)}
+        menuLabel={`More actions for request ${request.name}`}
+        menu={(close) => (
+          <>
+            <MenuItem
+              icon={<BookmarkPlus size={13} />}
+              disabled={!liveResponse}
+              hint={liveResponse ? undefined : "Send it first"}
+              onClick={() => { handleAddExample(); close(); }}
+            >
+              Add example
+            </MenuItem>
+            <MenuDivider />
+            <MenuItem icon={<Pencil size={13} />} onClick={() => { setRenaming(true); close(); }}>
+              Rename
+            </MenuItem>
+            <MenuItem icon={<Copy size={13} />} onClick={() => { handleDuplicate(); close(); }}>
+              Duplicate
+            </MenuItem>
+            <MenuDivider />
+            <MenuItem icon={<Trash2 size={13} />} danger onClick={() => { setConfirmingDelete(true); close(); }}>
+              Delete
+            </MenuItem>
+          </>
+        )}
+      />
+      {expanded && examples.map((example) => (
+        <ExampleRow key={example.id} example={example} request={request} depth={depth + 1} />
+      ))}
       <ConfirmDialog
         open={confirmingDelete}
         title="Delete request?"
-        message={`"${request.name}" will be removed from this folder. This can't be undone.`}
-        onConfirm={onDelete}
+        message={`"${request.name}" and its saved examples will be removed from this folder. This can't be undone.`}
+        onConfirm={handleDelete}
         onCancel={() => setConfirmingDelete(false)}
       />
-    </div>
+    </>
   );
 }

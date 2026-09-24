@@ -18,12 +18,6 @@ vi.mock("../src/api/collections", () => ({
   saveRequestToCollection: (...args: unknown[]) => saveRequestToCollectionMock(...args),
 }));
 
-const updateSavedRequestMock = vi.fn();
-vi.mock("../src/api/requests", () => ({
-  deleteSavedRequest: vi.fn(),
-  updateSavedRequest: (...args: unknown[]) => updateSavedRequestMock(...args),
-}));
-
 function folder(overrides: Partial<Collection> = {}): Collection {
   return {
     id: "c1",
@@ -85,26 +79,6 @@ describe("SaveRequestModal", () => {
       ),
     );
     await waitFor(() => expect(useRequestStore.getState().draft.savedRequestId).toBe("r1"));
-  });
-
-  it("updates an already-saved request in place", async () => {
-    fetchCollectionsMock.mockResolvedValue({ collections: [folder()], requests: [savedRequest()] });
-    updateSavedRequestMock.mockResolvedValue(savedRequest({ name: "Get users v2" }));
-
-    useRequestStore.getState().loadFromSavedRequest(savedRequest());
-
-    const user = userEvent.setup();
-    renderWithQueryClient(<SaveRequestModal onClose={() => {}} />);
-
-    expect(await screen.findByRole("heading", { name: /update request/i })).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Update" }));
-
-    await waitFor(() =>
-      expect(updateSavedRequestMock).toHaveBeenCalledWith(
-        "r1",
-        expect.objectContaining({ name: "Get users", url: "https://api.example.com/users" }),
-      ),
-    );
   });
 
   it("creates a new folder inline when 'Create new folder' is chosen", async () => {

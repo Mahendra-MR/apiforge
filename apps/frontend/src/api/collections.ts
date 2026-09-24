@@ -1,9 +1,11 @@
 import { apiFetch } from "./client";
-import type { Collection, SaveRequestInput, SavedRequest } from "../types";
+import type { Collection, RequestExample, SaveRequestInput, SavedRequest } from "../types";
 
 export interface CollectionsResponse {
   collections: Collection[];
   requests: SavedRequest[];
+  /** Absent from backends older than 0.3.2 — treat as empty. */
+  examples?: RequestExample[];
 }
 
 export function fetchCollections(): Promise<CollectionsResponse> {

@@ -7,11 +7,14 @@ import type {
   AuthConfig,
   AuthType,
   BodyMode,
+  ExecuteRequestResponse,
   HistoryEntry,
   HttpMethod,
   KeyValueRow,
   OAuth2TokenResponse,
   RequestDraft,
+  RequestExample,
+  SavedQueryParam,
   SavedRequest,
 } from "../types";
 import { createEmptyAuthConfig } from "../types";
@@ -53,6 +56,18 @@ function rowsFromRecord(record: Record<string, string> | null | undefined): KeyV
   return rowsFromEntries(record ? Object.entries(record) : []);
 }
 
+/** Rebuilds the Params tab from a saved request's persisted rows (older saved requests have none). */
+function rowsFromSavedParams(queryParams: unknown): KeyValueRow[] {
+  if (!Array.isArray(queryParams) || queryParams.length === 0) return [emptyRow()];
+  const rows = (queryParams as SavedQueryParam[]).map(({ key, value, enabled }) => ({
+    id: createRowId(),
+    key,
+    value,
+    enabled: enabled !== false,
+  }));
+  return [...rows, emptyRow()];
+}
+
 /** Derives a short request name from a URL's path, for requests that don't have one yet (history entries, cURL imports). Falls back to the raw url when it isn't a valid absolute URL (e.g. still uses an unresolved `{{baseUrl}}`). */
 function nameFromUrl(method: HttpMethod, url: string): string {
   try {
@@ -73,6 +88,10 @@ type RowList = "params" | "headers" | "formData";
 
 interface RequestState {
   draft: RequestDraft;
+  /** The live response to the current draft's last Send — cleared whenever a different request is opened. */
+  response: ExecuteRequestResponse | null;
+  /** A saved example being viewed in place of a live response (opened from the Collections tree). */
+  viewingExample: RequestExample | null;
   setMethod: (method: HttpMethod) => void;
   setUrl: (url: string) => void;
   setName: (name: string) => void;
@@ -89,6 +108,11 @@ interface RequestState {
   loadFromSavedRequest: (request: SavedRequest) => void;
   loadFromCurl: (parsed: ParsedCurlRequest) => void;
   markSaved: (savedRequestId: string, collectionId: string | null) => void;
+  /** Turns the open request back into an unsaved draft — e.g. when its saved copy was deleted. */
+  detachFromSavedRequest: () => void;
+  setResponse: (response: ExecuteRequestResponse) => void;
+  openExample: (request: SavedRequest, example: RequestExample) => void;
+  closeExample: () => void;
   reset: () => void;
 }
 
@@ -101,8 +125,13 @@ function withTrailingEmptyRow(rows: KeyValueRow[]): KeyValueRow[] {
   return rows;
 }
 
-export const useRequestStore = create<RequestState>((set) => ({
+/** Replacing the draft always drops the previous request's response and any example being viewed. */
+const FRESH_RESPONSE_STATE = { response: null, viewingExample: null } as const;
+
+export const useRequestStore = create<RequestState>((set, get) => ({
   draft: initialDraft(),
+  response: null,
+  viewingExample: null,
 
   setMethod: (method) => set((state) => ({ draft: { ...state.draft, method } })),
   setUrl: (url) => set((state) => ({ draft: { ...state.draft, url } })),
@@ -158,9 +187,12 @@ export const useRequestStore = create<RequestState>((set) => ({
       const rawBody = !isJsonBody && typeof entry.requestBody === "string" ? entry.requestBody : "";
 
       return {
+        ...FRESH_RESPONSE_STATE,
         draft: {
           id: createRowId(),
-          savedRequestId: entry.requestId,
+          // A history entry is a snapshot, so it opens as an unsaved draft —
+          // editing it must never autosave over the request it came from.
+          savedRequestId: null,
           collectionId: null,
           name: nameFromUrl(entry.method, entry.url),
           method: entry.method,
@@ -188,6 +220,7 @@ export const useRequestStore = create<RequestState>((set) => ({
           : [emptyRow()];
 
       return {
+        ...FRESH_RESPONSE_STATE,
         draft: {
           id: createRowId(),
           savedRequestId: savedRequest.id,
@@ -195,7 +228,7 @@ export const useRequestStore = create<RequestState>((set) => ({
           name: savedRequest.name,
           method: savedRequest.method,
           url: savedRequest.url,
-          params: [emptyRow()],
+          params: rowsFromSavedParams(savedRequest.queryParams),
           headers: rowsFromRecord(savedRequest.headers),
           bodyMode,
           jsonBody,
@@ -207,13 +240,17 @@ export const useRequestStore = create<RequestState>((set) => ({
       };
     }),
 
+  // Pasting a curl into a request that's already saved in a folder replaces
+  // that request's contents in place (same id, so it autosaves), like Postman;
+  // into an unsaved draft it simply becomes the new draft.
   loadFromCurl: (parsed) =>
-    set(() => ({
+    set((state) => ({
+      ...FRESH_RESPONSE_STATE,
       draft: {
-        id: createRowId(),
-        savedRequestId: null,
-        collectionId: null,
-        name: nameFromUrl(parsed.method, parsed.url),
+        id: state.draft.savedRequestId ? state.draft.id : createRowId(),
+        savedRequestId: state.draft.savedRequestId,
+        collectionId: state.draft.collectionId,
+        name: state.draft.savedRequestId ? state.draft.name : nameFromUrl(parsed.method, parsed.url),
         method: parsed.method,
         url: parsed.url,
         params: rowsFromEntries(parsed.queryParams),
@@ -230,7 +267,19 @@ export const useRequestStore = create<RequestState>((set) => ({
   markSaved: (savedRequestId, collectionId) =>
     set((state) => ({ draft: { ...state.draft, savedRequestId, collectionId } })),
 
-  reset: () => set({ draft: createDraft() }),
+  detachFromSavedRequest: () =>
+    set((state) => ({ draft: { ...state.draft, savedRequestId: null, collectionId: null } })),
+
+  setResponse: (response) => set({ response, viewingExample: null }),
+
+  openExample: (request, example) => {
+    if (get().draft.savedRequestId !== request.id) get().loadFromSavedRequest(request);
+    set({ viewingExample: example });
+  },
+
+  closeExample: () => set({ viewingExample: null }),
+
+  reset: () => set({ ...FRESH_RESPONSE_STATE, draft: createDraft() }),
 }));
 
 // Autosaves the draft to local storage on every change, so an in-progress
