@@ -27,6 +27,14 @@ function openDatabase(): Database.Database {
  * `environments` table without `collection_id`, and nothing else here would
  * ever add it. SQLite has no `ADD COLUMN IF NOT EXISTS` support we can rely
  * on across versions, so this checks `PRAGMA table_info` itself instead.
+ *
+ * The index on `collection_id` is created here too, after the column is
+ * guaranteed to exist, rather than in schema.ts's `SCHEMA_SQL`: that runs
+ * before this migration on every startup, so on an existing (pre-migration)
+ * database `CREATE INDEX ... ON environments(collection_id)` would fail with
+ * "no such column: collection_id" before this function ever got a chance to
+ * add it. `CREATE INDEX IF NOT EXISTS` is idempotent, so running it here
+ * unconditionally is safe for brand-new databases too.
  */
 function runMigrations(db: Database.Database): void {
   const environmentsColumns = db.prepare("PRAGMA table_info(environments)").all() as { name: string }[];
@@ -34,6 +42,7 @@ function runMigrations(db: Database.Database): void {
   if (!hasCollectionId) {
     db.exec("ALTER TABLE environments ADD COLUMN collection_id TEXT REFERENCES collections(id) ON DELETE CASCADE");
   }
+  db.exec("CREATE INDEX IF NOT EXISTS environments_collection_id_idx ON environments(collection_id)");
 }
 
 /**

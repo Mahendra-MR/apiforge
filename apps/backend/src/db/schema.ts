@@ -72,7 +72,6 @@ CREATE TABLE IF NOT EXISTS environments (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS environments_user_id_idx ON environments(user_id);
-CREATE INDEX IF NOT EXISTS environments_collection_id_idx ON environments(collection_id);
 
 CREATE TABLE IF NOT EXISTS environment_variables (
   id TEXT PRIMARY KEY,
