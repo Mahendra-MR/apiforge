@@ -1,7 +1,7 @@
 {
   "name": "@apiforge/desktop",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "APIForge AI packaged as a native macOS desktop app (Electron shell around the existing Express backend + React frontend, with an embedded SQLite database).",
   "main": "main.js",
   "scripts": {

@@ -1,7 +1,7 @@
 {
   "name": "apiforge-ai",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "APIForge AI - a lightweight, AI-assisted API testing and development platform",
   "workspaces": [
     "apps/backend",
