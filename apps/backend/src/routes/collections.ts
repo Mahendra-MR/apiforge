@@ -3,6 +3,7 @@ import { z } from "zod";
 import { DEFAULT_USER_ID } from "../config/constants.js";
 import { HttpError } from "../middleware/errorHandler.js";
 import * as collectionsService from "../services/collectionsService.js";
+import * as examplesService from "../services/examplesService.js";
 import * as savedRequestsService from "../services/savedRequestsService.js";
 import { saveRequestBodySchema } from "./requests.js";
 
@@ -29,8 +30,8 @@ const updateCollectionSchema = z.object({
 /**
  * GET /api/collections
  *
- * Returns every collection (folder) and every saved request for the user as
- * two flat lists. The frontend assembles the folder tree client-side from
+ * Returns every collection (folder), saved request and saved response
+ * example for the user as flat lists. The frontend assembles the folder tree client-side from
  * `parentId`/`collectionId` — simpler than the backend building and
  * re-serializing a tree, and just as easy for the UI to render.
  */
@@ -38,7 +39,8 @@ collectionsRouter.get("/", async (_req, res, next) => {
   try {
     const collections = await collectionsService.listCollections(userId);
     const requests = await savedRequestsService.listRequestsForCollections(collections.map((c) => c.id));
-    res.json({ collections, requests });
+    const examples = await examplesService.listExamplesForRequests(requests.map((r) => r.id));
+    res.json({ collections, requests, examples });
   } catch (error) {
     next(error);
   }

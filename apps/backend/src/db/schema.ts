@@ -1,5 +1,5 @@
 /**
- * APIForge AI — SQLite schema, applied idempotently on every startup via
+ * APIForge — SQLite schema, applied idempotently on every startup via
  * `CREATE TABLE IF NOT EXISTS`. There's no separate migration step to run
  * for an embedded, single-user desktop database at this scale.
  *
@@ -59,6 +59,23 @@ CREATE TABLE IF NOT EXISTS requests (
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS requests_collection_id_idx ON requests(collection_id);
+
+-- A saved response attached to a saved request (Postman's "examples"), so a
+-- response can be reviewed again later without re-sending the request.
+CREATE TABLE IF NOT EXISTS request_examples (
+  id TEXT PRIMARY KEY,
+  request_id TEXT NOT NULL REFERENCES requests(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  status INTEGER NOT NULL,
+  status_text TEXT NOT NULL DEFAULT '',
+  headers TEXT,
+  body TEXT NOT NULL DEFAULT '',
+  time_ms INTEGER,
+  size_bytes INTEGER,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS request_examples_request_id_idx ON request_examples(request_id);
 
 CREATE TABLE IF NOT EXISTS environments (
   id TEXT PRIMARY KEY,

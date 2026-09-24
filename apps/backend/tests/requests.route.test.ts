@@ -13,9 +13,14 @@ vi.mock("../src/services/savedRequestsService.js", () => ({
   deleteSavedRequest: vi.fn(),
 }));
 
+vi.mock("../src/services/examplesService.js", () => ({
+  createExample: vi.fn(),
+}));
+
 const { executeHttpRequest } = await import("../src/services/httpExecutor.js");
 const { recordHistory } = await import("../src/services/historyService.js");
 const savedRequestsService = await import("../src/services/savedRequestsService.js");
+const examplesService = await import("../src/services/examplesService.js");
 const { createApp } = await import("../src/app.js");
 
 const app = createApp();
@@ -156,5 +161,41 @@ describe("saved request CRUD (/api/requests/:id)", () => {
     vi.mocked(savedRequestsService.deleteSavedRequest).mockResolvedValue(false);
     const res = await request(app).delete(`/api/requests/${validId}`);
     expect(res.status).toBe(404);
+  });
+});
+
+describe("POST /api/requests/:id/examples", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("saves a response as an example on an existing saved request", async () => {
+    vi.mocked(savedRequestsService.getSavedRequest).mockResolvedValue({ id: validId } as never);
+    vi.mocked(examplesService.createExample).mockResolvedValue({ id: "ex-1", name: "200 OK" } as never);
+
+    const res = await request(app)
+      .post(`/api/requests/${validId}/examples`)
+      .send({ name: "200 OK", status: 200, statusText: "OK", headers: { "content-type": "application/json" }, body: "{}" });
+
+    expect(res.status).toBe(201);
+    expect(res.body.id).toBe("ex-1");
+    expect(examplesService.createExample).toHaveBeenCalledWith(
+      validId,
+      expect.objectContaining({ name: "200 OK", status: 200, body: "{}" }),
+    );
+  });
+
+  it("returns 404 when the saved request doesn't exist", async () => {
+    vi.mocked(savedRequestsService.getSavedRequest).mockResolvedValue(null);
+
+    const res = await request(app).post(`/api/requests/${validId}/examples`).send({ name: "x", status: 200 });
+
+    expect(res.status).toBe(404);
+    expect(examplesService.createExample).not.toHaveBeenCalled();
+  });
+
+  it("rejects an example without a status", async () => {
+    const res = await request(app).post(`/api/requests/${validId}/examples`).send({ name: "x" });
+    expect(res.status).toBe(400);
   });
 });

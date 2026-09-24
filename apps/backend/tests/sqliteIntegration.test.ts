@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_USER_ID } from "../src/config/constants.js";
 import * as collectionsService from "../src/services/collectionsService.js";
 import * as environmentsService from "../src/services/environmentsService.js";
+import * as examplesService from "../src/services/examplesService.js";
 import * as historyService from "../src/services/historyService.js";
 import * as savedRequestsService from "../src/services/savedRequestsService.js";
 
@@ -120,6 +121,34 @@ describe("SQLite integration (real, unmocked pool)", () => {
 
     expect(await savedRequestsService.deleteSavedRequest(saved.id)).toBe(true);
     expect(await savedRequestsService.getSavedRequest(saved.id)).toBeNull();
+  });
+
+  it("saves a blank request, attaches examples to it, and cascades them away when the request is deleted", async () => {
+    const collection = await collectionsService.createCollection(DEFAULT_USER_ID, { name: "Examples" });
+    // "Add request" in the tree creates the request before the user has typed a URL.
+    const saved = await savedRequestsService.createSavedRequest(collection.id, { name: "New Request", method: "GET", url: "" });
+    expect(saved.url).toBe("");
+
+    const example = await examplesService.createExample(saved.id, {
+      name: "200 OK",
+      status: 200,
+      statusText: "OK",
+      headers: { "content-type": "application/json" },
+      body: '{"ok":true}',
+      timeMs: 42,
+      sizeBytes: 11,
+    });
+    expect(example.headers).toEqual({ "content-type": "application/json" });
+
+    const renamed = await examplesService.renameExample(example.id, "Happy path");
+    expect(renamed?.name).toBe("Happy path");
+
+    const listed = await examplesService.listExamplesForRequests([saved.id]);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).toMatchObject({ requestId: saved.id, name: "Happy path", status: 200, body: '{"ok":true}', timeMs: 42 });
+
+    await savedRequestsService.deleteSavedRequest(saved.id);
+    expect(await examplesService.listExamplesForRequests([saved.id])).toHaveLength(0);
   });
 
   it("records history and searches it with the LIKE-based filter (the old ILIKE rewrite)", async () => {

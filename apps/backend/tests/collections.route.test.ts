@@ -17,8 +17,13 @@ vi.mock("../src/services/savedRequestsService.js", () => ({
   deleteSavedRequest: vi.fn(),
 }));
 
+vi.mock("../src/services/examplesService.js", () => ({
+  listExamplesForRequests: vi.fn(),
+}));
+
 const collectionsService = await import("../src/services/collectionsService.js");
 const savedRequestsService = await import("../src/services/savedRequestsService.js");
+const examplesService = await import("../src/services/examplesService.js");
 const { createApp } = await import("../src/app.js");
 
 const app = createApp();
@@ -29,15 +34,18 @@ describe("collections routes", () => {
     vi.clearAllMocks();
   });
 
-  it("GET / returns collections and their requests together", async () => {
+  it("GET / returns collections, their requests and those requests' examples together", async () => {
     vi.mocked(collectionsService.listCollections).mockResolvedValue([{ id: validId } as never]);
     vi.mocked(savedRequestsService.listRequestsForCollections).mockResolvedValue([{ id: "req-1" } as never]);
+    vi.mocked(examplesService.listExamplesForRequests).mockResolvedValue([{ id: "ex-1", requestId: "req-1" } as never]);
 
     const res = await request(app).get("/api/collections");
 
     expect(res.status).toBe(200);
     expect(res.body.collections).toHaveLength(1);
     expect(res.body.requests).toHaveLength(1);
+    expect(res.body.examples).toHaveLength(1);
+    expect(examplesService.listExamplesForRequests).toHaveBeenCalledWith(["req-1"]);
   });
 
   it("POST / rejects a missing name", async () => {

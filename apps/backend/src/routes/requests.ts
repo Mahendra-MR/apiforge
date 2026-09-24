@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { z } from "zod";
 import { HttpError } from "../middleware/errorHandler.js";
+import * as examplesService from "../services/examplesService.js";
 import { executeHttpRequest } from "../services/httpExecutor.js";
 import { recordHistory } from "../services/historyService.js";
 import * as savedRequestsService from "../services/savedRequestsService.js";
 import { HTTP_METHODS } from "../types/index.js";
 import { logger } from "../utils/logger.js";
 import { maskSensitiveHeaders } from "../utils/sanitize.js";
+import { createExampleSchema } from "./examples.js";
 
 export const requestsRouter = Router();
 
@@ -69,7 +71,9 @@ const idParamSchema = z.object({ id: z.string().uuid() });
 const saveRequestBodySchema = z.object({
   name: z.string().trim().min(1).max(200),
   method: z.enum(HTTP_METHODS),
-  url: z.string().min(1),
+  // May be empty: "Add request" in the Collections tree creates a blank
+  // request up front and the user fills in the URL afterwards (autosaved).
+  url: z.string(),
   queryParams: z.unknown().optional(),
   pathParams: z.unknown().optional(),
   headers: z.record(z.string()).optional(),
@@ -115,6 +119,19 @@ requestsRouter.delete("/:id", async (req, res, next) => {
     const deleted = await savedRequestsService.deleteSavedRequest(id);
     if (!deleted) throw new HttpError(404, `Request "${id}" not found`);
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+});
+
+/** POST /api/requests/:id/examples — save a response as an example on this saved request. */
+requestsRouter.post("/:id/examples", async (req, res, next) => {
+  try {
+    const { id } = idParamSchema.parse(req.params);
+    const input = createExampleSchema.parse(req.body);
+    const savedRequest = await savedRequestsService.getSavedRequest(id);
+    if (!savedRequest) throw new HttpError(404, `Request "${id}" not found`);
+    res.status(201).json(await examplesService.createExample(id, input));
   } catch (error) {
     next(error);
   }
