@@ -1,6 +1,7 @@
 import clsx from "clsx";
 import { Trash2 } from "lucide-react";
 import { METHOD_TEXT_COLOR } from "../../lib/methodColors";
+import { useRequestStore } from "../../store/useRequestStore";
 import type { SavedRequest } from "../../types";
 
 interface SavedRequestRowProps {
@@ -11,16 +12,28 @@ interface SavedRequestRowProps {
 }
 
 export function SavedRequestRow({ request, depth, onOpen, onDelete }: SavedRequestRowProps) {
+  const isActive = useRequestStore((s) => s.draft.savedRequestId === request.id);
+
   return (
     <div
-      className="group flex items-center gap-2 rounded-md py-1 pr-2 hover:bg-slate-100 dark:hover:bg-slate-800"
+      className={clsx(
+        "group flex items-center gap-2 rounded-md py-1 pr-2",
+        isActive ? "bg-emerald-50 dark:bg-emerald-500/10" : "hover:bg-slate-100 dark:hover:bg-slate-800",
+      )}
       style={{ paddingLeft: `${depth * 16 + 24}px` }}
     >
       <button onClick={onOpen} className="flex min-w-0 flex-1 items-center gap-2 text-left">
         <span className={clsx("w-12 shrink-0 text-xs font-bold", METHOD_TEXT_COLOR[request.method] ?? "text-slate-500")}>
           {request.method}
         </span>
-        <span className="truncate text-sm text-slate-700 dark:text-slate-200">{request.name}</span>
+        <span
+          className={clsx(
+            "truncate text-sm",
+            isActive ? "font-medium text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-200",
+          )}
+        >
+          {request.name}
+        </span>
       </button>
       <button
         onClick={onDelete}

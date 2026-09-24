@@ -89,8 +89,8 @@ describe("CollectionsPanel", () => {
     renderWithQueryClient(<CollectionsPanel />);
     await screen.findByText(/no collections yet/i);
 
-    await user.type(screen.getByPlaceholderText(/new folder name/i), "APIs");
-    await user.click(screen.getByRole("button", { name: /^new$/i }));
+    await user.click(screen.getByTitle(/^new folder$/i));
+    await user.type(screen.getByPlaceholderText(/^folder name$/i), "APIs{Enter}");
 
     await waitFor(() => expect(createCollectionMock).toHaveBeenCalledWith({ name: "APIs" }));
   });

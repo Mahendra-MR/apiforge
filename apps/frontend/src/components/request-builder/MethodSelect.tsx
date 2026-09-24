@@ -1,15 +1,6 @@
 import clsx from "clsx";
 import { HTTP_METHODS, type HttpMethod } from "../../types";
-
-const METHOD_COLORS: Record<HttpMethod, string> = {
-  GET: "text-emerald-600 dark:text-emerald-400",
-  POST: "text-amber-600 dark:text-amber-400",
-  PUT: "text-blue-600 dark:text-blue-400",
-  PATCH: "text-purple-600 dark:text-purple-400",
-  DELETE: "text-red-600 dark:text-red-400",
-  HEAD: "text-slate-500 dark:text-slate-400",
-  OPTIONS: "text-slate-500 dark:text-slate-400",
-};
+import { METHOD_TEXT_COLOR } from "../../lib/methodColors";
 
 export function MethodSelect({ value, onChange }: { value: HttpMethod; onChange: (method: HttpMethod) => void }) {
   return (
@@ -17,8 +8,8 @@ export function MethodSelect({ value, onChange }: { value: HttpMethod; onChange:
       value={value}
       onChange={(e) => onChange(e.target.value as HttpMethod)}
       className={clsx(
-        "h-9 rounded-lg border border-slate-200 bg-white pl-2.5 pr-1.5 text-sm font-bold shadow-subtle focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800/60",
-        METHOD_COLORS[value],
+        "h-9 shrink-0 rounded-l-lg border border-r-0 border-slate-200 bg-white pl-3 pr-2 text-sm font-bold tracking-tight focus:z-10 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:border-slate-700 dark:bg-slate-800/60",
+        METHOD_TEXT_COLOR[value],
       )}
       aria-label="HTTP method"
     >

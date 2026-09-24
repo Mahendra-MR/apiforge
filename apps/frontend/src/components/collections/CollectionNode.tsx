@@ -79,7 +79,12 @@ export function CollectionNode({ node, depth }: CollectionNodeProps) {
       </div>
 
       {expanded && (
-        <div>
+        <div className="relative">
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-y-0 border-l border-slate-100 dark:border-slate-800/70"
+            style={{ left: `${depth * 16 + 10}px` }}
+          />
           {node.children.map((child) => (
             <CollectionNode key={child.collection.id} node={child} depth={depth + 1} />
           ))}

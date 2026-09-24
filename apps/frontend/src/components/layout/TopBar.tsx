@@ -31,7 +31,7 @@ export function TopBar() {
       <button
         disabled
         title="Multiple workspaces are coming in a later phase"
-        className="flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-400"
+        className="flex items-center gap-1 rounded-lg border border-dashed border-slate-200 px-2.5 py-1.5 text-sm text-slate-400 dark:border-slate-700"
       >
         My Workspace
         <ChevronDown size={14} />

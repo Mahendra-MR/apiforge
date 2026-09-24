@@ -74,15 +74,17 @@ export function RequestBuilder({ onSend, isSending }: RequestBuilderProps) {
   return (
     <div className="flex h-full flex-col">
       <div className="flex items-center gap-2 border-b border-slate-100 p-3 dark:border-slate-800">
-        <MethodSelect value={draft.method} onChange={setMethod} />
-        <input
-          value={draft.url}
-          onChange={(e) => setUrl(e.target.value)}
-          onPaste={handleUrlPaste}
-          placeholder="https://api.example.com/users"
-          spellCheck={false}
-          className="h-9 flex-1 rounded-lg border border-slate-200 bg-white px-3 font-mono text-sm shadow-subtle focus:border-emerald-500 focus:outline-none dark:border-slate-700 dark:bg-slate-800/60"
-        />
+        <div className="flex min-w-0 flex-1 shadow-subtle">
+          <MethodSelect value={draft.method} onChange={setMethod} />
+          <input
+            value={draft.url}
+            onChange={(e) => setUrl(e.target.value)}
+            onPaste={handleUrlPaste}
+            placeholder="https://api.example.com/users"
+            spellCheck={false}
+            className="h-9 min-w-0 flex-1 rounded-r-lg border border-slate-200 bg-white px-3 font-mono text-sm focus:z-10 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500/50 dark:border-slate-700 dark:bg-slate-800/60"
+          />
+        </div>
         <Button variant="secondary" onClick={() => setImportModalOpen(true)}>
           Import
         </Button>
